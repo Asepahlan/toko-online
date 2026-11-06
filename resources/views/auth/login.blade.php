@@ -40,7 +40,7 @@
                         <div class="mb-3">
                             <div class="d-flex justify-content-between align-items-center">
                                 <label for="password" class="form-label fw-semibold mb-0">Kata Sandi</label>
-                                @if (Route::has('password.request'))
+                                @if (\Illuminate\Support\Facades\Route::has('password.request'))
                                     <a class="text-primary text-decoration-none small" href="{{ route('password.request') }}">
                                         Lupa Sandi?
                                     </a>
