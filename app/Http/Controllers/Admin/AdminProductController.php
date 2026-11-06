@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class AdminProductController extends Controller
 {
@@ -85,19 +86,32 @@ class AdminProductController extends Controller
         $categories = Category::all();
 
         // Tambahkan data untuk chart
-        $salesData = DB::table('orders')
-            ->selectRaw('MONTH(created_at) as month, SUM(total_amount) as total')
-            ->whereYear('created_at', date('Y'))
-            ->groupBy('month')
-            ->get();
-
         $chartData = [
             'labels' => ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'],
             'data' => array_fill(0, 12, 0)
         ];
 
-        foreach ($salesData as $sale) {
-            $chartData['data'][$sale->month - 1] = $sale->total;
+        try {
+            $driver = DB::getDriverName();
+            if ($driver === 'mysql') {
+                $salesData = DB::table('orders')
+                    ->selectRaw('MONTH(created_at) as month, SUM(total_amount) as total')
+                    ->whereYear('created_at', date('Y'))
+                    ->groupBy('month')
+                    ->get();
+
+                foreach ($salesData as $sale) {
+                    $chartData['data'][$sale->month - 1] = (float) $sale->total;
+                }
+            } else {
+                $sales = Order::whereYear('created_at', date('Y'))->get();
+                foreach ($sales as $sale) {
+                    $m = (int) $sale->created_at->format('n');
+                    $chartData['data'][$m - 1] += (float) ($sale->total_amount ?? 0);
+                }
+            }
+        } catch (\Throwable $e) {
+            // chart remains empty on error
         }
 
         return view('admin.products.index', [
@@ -117,31 +131,34 @@ class AdminProductController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|max:255',
+            'price' => 'required|numeric',
             'description' => 'required',
-            'price' => 'required|numeric|min:0|regex:/^\d*\.?\d{0,2}$/',
+            'image' => 'image|mimes:jpeg,png,jpg,gif|max:2048',
             'stock' => 'required|integer|min:0',
             'category_id' => 'required|exists:categories,id',
-            'image' => 'required|image|mimes:jpeg,png,jpg|max:2048'
-        ], [
-            'price.regex' => 'Format harga tidak valid. Gunakan format angka dengan maksimal 2 desimal.'
         ]);
 
-        $validated['slug'] = Str::slug($validated['name']);
-        $validated['is_active'] = $request->has('is_active');
-
-        // Upload dan simpan gambar
+        $imagePath = null;
+        $imageUrl = null;
         if ($request->hasFile('image')) {
-            $image = $request->file('image');
-            $filename = time() . '_' . $image->getClientOriginalName();
-            $path = $image->storeAs('public/products', $filename);
-            $validated['image'] = str_replace('public/', '', $path);
-            $validated['image_url'] = Storage::url($path);
+            $imagePath = $request->file('image')->store('products', 'public');
+            $imageUrl = Storage::url($imagePath);
         }
 
-        Product::create($validated);
+        Product::create([
+            'name' => $validated['name'],
+            'slug' => Str::slug($validated['name']),
+            'price' => $validated['price'],
+            'description' => $validated['description'],
+            'image' => $imagePath,
+            'image_url' => $imageUrl,
+            'stock' => $validated['stock'],
+            'category_id' => $validated['category_id'],
+            'is_active' => true,
+        ]);
 
         return redirect()->route('admin.products.index')
-            ->with('success', 'Produk berhasil ditambahkan');
+                        ->with('success', 'Produk berhasil ditambahkan');
     }
 
     public function edit(Product $product)
@@ -186,17 +203,45 @@ class AdminProductController extends Controller
             ->with('success', 'Produk berhasil diperbarui');
     }
 
-    public function destroy(Product $product)
+    public function destroy($id)
     {
-        // Hapus gambar dari storage
-        if ($product->image) {
-            Storage::delete('public/' . $product->image);
+        try {
+            DB::beginTransaction();
+
+            $product = Product::findOrFail($id);
+            Log::info('Mencoba menghapus produk ID: ' . $id);
+
+            // Hapus order_items terkait terlebih dahulu
+            DB::table('order_items')->where('product_id', $id)->delete();
+
+            // Hapus cart_items terkait
+            DB::table('cart_items')->where('product_id', $id)->delete();
+
+            // Hapus gambar jika ada
+            if ($product->image) {
+                $imagePath = 'public/' . $product->image;
+                if (Storage::exists($imagePath)) {
+                    Storage::delete($imagePath);
+                    Log::info('Gambar berhasil dihapus: ' . $imagePath);
+                }
+            }
+
+            // Hapus produk
+            $product->delete();
+
+            DB::commit();
+            Log::info('Produk berhasil dihapus');
+
+            return redirect('/admin/products')
+                ->with('success', 'Produk berhasil dihapus');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error saat menghapus produk: ' . $e->getMessage());
+
+            return redirect('/admin/products')
+                ->with('error', 'Gagal menghapus produk: ' . $e->getMessage());
         }
-
-        $product->delete();
-
-        return redirect()->route('admin.products.index')
-            ->with('success', 'Produk berhasil dihapus');
     }
 
     public function show(Product $product)

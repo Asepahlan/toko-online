@@ -11,7 +11,11 @@ class AdminCategoryController extends Controller
 {
     public function index()
     {
-        $categories = Category::withCount('products')->paginate(10);
+        $categories = Category::query()
+            ->withCount('products')
+            ->orderBy('name')
+            ->get();
+
         return view('admin.categories.index', compact('categories'));
     }
 
@@ -22,82 +26,51 @@ class AdminCategoryController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate([
-            'name' => 'required|string|max:255|unique:categories',
-            'description' => 'nullable|string',
-            'icon' => 'nullable|string|max:50'
+        $validated = $request->validate([
+            'name' => 'required|max:255|unique:categories',
+            'description' => 'nullable'
         ]);
 
-        try {
-            Category::create([
-                'name' => $request->name,
-                'slug' => Str::slug($request->name),
-                'description' => $request->description,
-                'icon' => $request->icon
-            ]);
+        $validated['slug'] = Str::slug($validated['name']);
 
-            return redirect()->route('admin.categories.index')
-                ->with('success', 'Kategori berhasil ditambahkan');
-        } catch (\Exception $e) {
-            return back()->with('error', 'Terjadi kesalahan saat menambahkan kategori')
-                ->withInput();
-        }
+        Category::create($validated);
+
+        return redirect()
+            ->route('admin.categories.index')
+            ->with('success', 'Kategori berhasil ditambahkan');
     }
 
     public function edit(Category $category)
     {
-        if (request()->ajax()) {
-            return response()->json([
-                'category' => $category
-            ]);
-        }
         return view('admin.categories.edit', compact('category'));
     }
 
     public function update(Request $request, Category $category)
     {
         $validated = $request->validate([
-            'name' => 'required|max:255',
-            'description' => 'required',
-            'icon' => 'nullable|string|max:50'
+            'name' => 'required|max:255|unique:categories,name,' . $category->id,
+            'description' => 'nullable'
         ]);
 
         $validated['slug'] = Str::slug($validated['name']);
 
-        try {
-            $category->update($validated);
+        $category->update($validated);
 
-            if ($request->ajax()) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Kategori berhasil diperbarui',
-                    'category' => $category
-                ]);
-            }
-
-            return redirect()->route('admin.categories.index')
-                ->with('success', 'Kategori berhasil diperbarui');
-        } catch (\Exception $e) {
-            if ($request->ajax()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Terjadi kesalahan saat memperbarui kategori'
-                ], 500);
-            }
-
-            return back()->with('error', 'Terjadi kesalahan saat memperbarui kategori');
-        }
+        return redirect()
+            ->route('admin.categories.index')
+            ->with('success', 'Kategori berhasil diperbarui');
     }
 
     public function destroy(Category $category)
     {
-        if ($category->products()->count() > 0) {
-            return back()->with('error', 'Tidak dapat menghapus kategori yang memiliki produk');
+        if ($category->products()->exists()) {
+            return back()->with('error', 'Kategori tidak dapat dihapus karena masih memiliki produk');
         }
 
         $category->delete();
 
-        return redirect()->route('admin.categories.index')
+        return redirect()
+            ->route('admin.categories.index')
             ->with('success', 'Kategori berhasil dihapus');
     }
 }

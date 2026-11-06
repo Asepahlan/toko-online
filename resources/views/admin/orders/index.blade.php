@@ -1,89 +1,79 @@
 @extends('layouts.admin')
 
-@section('title', 'Manajemen Pesanan - ' . config('app.name'))
-
 @section('content')
-<div class="container-fluid px-4">
-    <!-- Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h1 class="h3 mb-2">Pesanan</h1>
-            <p class="text-muted mb-0">Kelola semua pesanan pelanggan</p>
+<div class="container-fluid">
+    <h1 class="h3 mb-2">Pesanan</h1>
+    <p class="text-muted">Kelola semua pesanan pelanggan</p>
+
+    <!-- Status Cards -->
+    <div class="row g-3 mb-4">
+        <!-- Card Menunggu -->
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="bi bi-clock-history text-warning h1"></i>
+                    <h5>Menunggu</h5>
+                    <h3>{{ $pendingOrders }}</h3>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card Diproses -->
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="bi bi-gear text-info h1"></i>
+                    <h5>Diproses</h5>
+                    <h3>{{ $processingOrders }}</h3>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card Selesai -->
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="bi bi-check-circle text-success h1"></i>
+                    <h5>Selesai</h5>
+                    <h3>{{ $completedOrders }}</h3>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card Dibatalkan -->
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="bi bi-x-circle text-danger h1"></i>
+                    <h5>Dibatalkan</h5>
+                    <h3>{{ $cancelledOrders }}</h3>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- Stats Cards -->
-    <div class="row g-3 mb-4">
-        <div class="col-12 col-sm-6 col-lg-3">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body">
-                    <div class="d-flex align-items-start justify-content-between">
-                        <div>
-                            <div class="text-muted small mb-1">Menunggu Pembayaran</div>
-                            <h3 class="mb-0">{{ $pendingOrders }}</h3>
-                        </div>
-                        <div class="flex-shrink-0">
-                            <div class="bg-warning bg-opacity-10 rounded-3 p-3">
-                                <i class="bi bi-clock-history text-warning fs-4"></i>
-                            </div>
-                        </div>
-                    </div>
+    <!-- Search and Filter -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <form action="{{ route('admin.orders.index') }}" method="GET" class="row g-3">
+                <div class="col-md-6">
+                    <input type="text" name="search" class="form-control" placeholder="Cari berdasarkan ID, pelanggan, atau email..." value="{{ request('search') }}">
                 </div>
-            </div>
-        </div>
-
-        <div class="col-12 col-sm-6 col-lg-3">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body">
-                    <div class="d-flex align-items-start justify-content-between">
-                        <div>
-                            <div class="text-muted small mb-1">Diproses</div>
-                            <h3 class="mb-0">{{ $processingOrders }}</h3>
-                        </div>
-                        <div class="flex-shrink-0">
-                            <div class="bg-info bg-opacity-10 rounded-3 p-3">
-                                <i class="bi bi-gear text-info fs-4"></i>
-                            </div>
-                        </div>
-                    </div>
+                <div class="col-md-4">
+                    <select name="status" class="form-select">
+                        <option value="">Semua Status</option>
+                        <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Menunggu</option>
+                        <option value="processing" {{ request('status') == 'processing' ? 'selected' : '' }}>Diproses</option>
+                        <option value="completed" {{ request('status') == 'completed' ? 'selected' : '' }}>Selesai</option>
+                        <option value="cancelled" {{ request('status') == 'cancelled' ? 'selected' : '' }}>Dibatalkan</option>
+                    </select>
                 </div>
-            </div>
-        </div>
-
-        <div class="col-12 col-sm-6 col-lg-3">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body">
-                    <div class="d-flex align-items-start justify-content-between">
-                        <div>
-                            <div class="text-muted small mb-1">Selesai</div>
-                            <h3 class="mb-0">{{ $completedOrders }}</h3>
-                        </div>
-                        <div class="flex-shrink-0">
-                            <div class="bg-success bg-opacity-10 rounded-3 p-3">
-                                <i class="bi bi-check-circle text-success fs-4"></i>
-                            </div>
-                        </div>
-                    </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-search"></i> Cari
+                    </button>
                 </div>
-            </div>
-        </div>
-
-        <div class="col-12 col-sm-6 col-lg-3">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body">
-                    <div class="d-flex align-items-start justify-content-between">
-                        <div>
-                            <div class="text-muted small mb-1">Dibatalkan</div>
-                            <h3 class="mb-0">{{ $cancelledOrders }}</h3>
-                        </div>
-                        <div class="flex-shrink-0">
-                            <div class="bg-danger bg-opacity-10 rounded-3 p-3">
-                                <i class="bi bi-x-circle text-danger fs-4"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            </form>
         </div>
     </div>
 
@@ -91,155 +81,151 @@
     <div class="card border-0 shadow-sm">
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-hover align-middle">
-                    <thead class="bg-light">
+                <table class="table table-hover">
+                    <thead>
                         <tr>
                             <th>ID</th>
-                            <th>PELANGGAN</th>
-                            <th>TOTAL</th>
-                            <th>STATUS</th>
-                            <th>TANGGAL</th>
-                            <th>AKSI</th>
+                            <th>Pelanggan</th>
+                            <th>Total</th>
+                            <th>Status</th>
+                            <th>Tanggal</th>
+                            <th>Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @forelse($orders as $order)
-                            <tr>
-                                <td>#{{ $order->id }}</td>
-                                <td>
-                                    <div class="d-flex align-items-center">
-                                        <div class="rounded-circle d-flex align-items-center justify-content-center me-3" 
-                                             style="width: 40px; height: 40px; background-color: {{ '#' . substr(md5($order->user->name), 0, 6) }};">
-                                            <span class="text-white fw-bold">
-                                                {{ strtoupper(substr($order->user->name, 0, 2)) }}
-                                            </span>
-                                        </div>
-                                        <div>
-                                            <h6 class="mb-1">{{ $order->user->name }}</h6>
-                                            <small class="text-muted">{{ $order->user->email }}</small>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td>Rp {{ number_format($order->total_amount, 0, ',', '.') }}</td>
-                                <td>
-                                    <select class="form-select form-select-sm w-auto" 
-                                            onchange="updateStatus({{ $order->id }}, this.value)">
-                                        <option value="pending" {{ $order->status == 'pending' ? 'selected' : '' }}>
-                                            Menunggu Pembayaran
-                                        </option>
-                                        <option value="processing" {{ $order->status == 'processing' ? 'selected' : '' }}>
-                                            Diproses
-                                        </option>
-                                        <option value="shipped" {{ $order->status == 'shipped' ? 'selected' : '' }}>
-                                            Dikirim
-                                        </option>
-                                        <option value="completed" {{ $order->status == 'completed' ? 'selected' : '' }}>
-                                            Selesai
-                                        </option>
-                                        <option value="cancelled" {{ $order->status == 'cancelled' ? 'selected' : '' }}>
-                                            Dibatalkan
-                                        </option>
-                                    </select>
-                                </td>
-                                <td>
-                                    <div>{{ $order->created_at->format('d M Y') }}</div>
-                                    <small class="text-muted">{{ $order->created_at->format('H:i') }}</small>
-                                </td>
-                                <td>
-                                    <div class="btn-group">
-                                        <a href="{{ route('admin.orders.show', $order) }}" 
-                                           class="btn btn-sm btn-outline-primary">
-                                            <i class="bi bi-eye"></i>
-                                        </a>
-                                        <button type="button"
-                                                class="btn btn-sm btn-outline-danger"
-                                                onclick="deleteOrder({{ $order->id }})">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="6" class="text-center py-4">
-                                    <div class="text-muted">
-                                        <i class="bi bi-inbox display-6 d-block mb-3"></i>
-                                        <p class="mb-0">Belum ada pesanan</p>
-                                    </div>
-                                </td>
-                            </tr>
-                        @endforelse
+                        @foreach($orders as $order)
+                        <tr>
+                            <td>#{{ $order->id }}</td>
+                            <td>{{ $order->user->name }}</td>
+                            <td>Rp {{ number_format($order->total_amount, 0, ',', '.') }}</td>
+                            <td>
+                                @if($order->status == 'pending')
+                                    <span class="badge bg-warning">Menunggu</span>
+                                @elseif($order->status == 'processing')
+                                    <span class="badge bg-info">Diproses</span>
+                                @elseif($order->status == 'completed')
+                                    <span class="badge bg-success">Selesai</span>
+                                @else
+                                    <span class="badge bg-danger">Dibatalkan</span>
+                                @endif
+                            </td>
+                            <td>{{ $order->created_at->format('d M Y H:i') }}</td>
+                            <td>
+                                <div class="d-flex gap-1">
+                                    <button type="button" class="btn btn-warning btn-sm rounded-circle" data-bs-toggle="modal" data-bs-target="#editOrderModal{{ $order->id }}">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+
+                                    <!-- Tombol hapus pesanan -->
+                                    <button class="btn btn-danger" onclick="confirmDelete('{{ $order->id }}')">Hapus</button>
+
+                                    <!-- Form untuk menghapus pesanan -->
+                                    <form id="delete-form-{{ $order->id }}" action="{{ route('admin.orders.destroy', $order->id) }}" method="POST" style="display:none;">
+                                        @csrf
+                                        @method('DELETE')
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        @endforeach
                     </tbody>
                 </table>
             </div>
 
-            <!-- Pagination -->
-            <div class="d-flex justify-content-between align-items-center mt-4">
-                <div class="text-muted small">
-                    Menampilkan {{ $orders->firstItem() ?? 0 }} sampai {{ $orders->lastItem() ?? 0 }}
-                    dari {{ $orders->total() }} pesanan
-                </div>
-                {{ $orders->links('vendor.pagination.bootstrap-5') }}
-            </div>
+            {{ $orders->links() }}
         </div>
     </div>
 </div>
 
-<!-- Delete Modal -->
-<div class="modal fade" id="deleteModal" tabindex="-1">
-    <div class="modal-dialog">
+<!-- Modal Edit untuk setiap pesanan -->
+@foreach($orders as $order)
+<div class="modal fade" id="editOrderModal{{ $order->id }}" tabindex="-1">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Konfirmasi Hapus</h5>
+                <h5 class="modal-title">Edit Pesanan #{{ $order->id }}</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
-                <p>Apakah Anda yakin ingin menghapus pesanan ini?</p>
-            </div>
-            <div class="modal-footer">
-                <form id="deleteForm" method="POST">
-                    @csrf
-                    @method('DELETE')
-                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button>
-                    <button type="submit" class="btn btn-danger">Hapus</button>
-                </form>
-            </div>
+            <form action="{{ route('admin.orders.update', $order) }}" method="POST">
+                @csrf
+                @method('PATCH')
+                <div class="modal-body">
+                    <!-- Detail Pesanan -->
+                    <div class="table-responsive mb-3">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Produk</th>
+                                    <th class="text-end">Harga</th>
+                                    <th class="text-center">Jumlah</th>
+                                    <th class="text-end">Subtotal</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($order->orderItems as $item)
+                                <tr>
+                                    <td>{{ $item->product->name }}</td>
+                                    <td class="text-end">Rp {{ number_format($item->price, 0, ',', '.') }}</td>
+                                    <td class="text-center">
+                                        <input type="number" name="quantities[{{ $item->id }}]" value="{{ $item->quantity }}" min="1" class="form-control" required>
+                                    </td>
+                                    <td class="text-end">Rp {{ number_format($item->price * $item->quantity, 0, ',', '.') }}</td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <td colspan="3" class="text-end fw-bold">Total</td>
+                                    <td class="text-end fw-bold">Rp {{ number_format($order->total_amount, 0, ',', '.') }}</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+
+                    <!-- Status -->
+                    <div class="mb-3">
+                        <label class="form-label">Status Pesanan</label>
+                        <select name="status" class="form-select">
+                            <option value="pending" {{ $order->status == 'pending' ? 'selected' : '' }}>Menunggu</option>
+                            <option value="processing" {{ $order->status == 'processing' ? 'selected' : '' }}>Diproses</option>
+                            <option value="completed" {{ $order->status == 'completed' ? 'selected' : '' }}>Selesai</option>
+                            <option value="cancelled" {{ $order->status == 'cancelled' ? 'selected' : '' }}>Dibatalkan</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary">Simpan Perubahan</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
-@endsection
+@endforeach
 
+<!-- Tambahkan ini di dalam <head> di file view Anda -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<!-- Script untuk SweetAlert2 -->
 @push('scripts')
 <script>
-function updateStatus(orderId, status) {
-    fetch(`/admin/orders/${orderId}/status`, {
-        method: 'PATCH',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-        },
-        body: JSON.stringify({ status: status })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            location.reload();
-        } else {
-            alert('Gagal memperbarui status pesanan');
-            location.reload();
+function confirmDelete(orderId) {
+    Swal.fire({
+        title: 'Hapus Pesanan?',
+        text: "Apakah Anda yakin ingin menghapus pesanan ini?",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Ya, Hapus!',
+        cancelButtonText: 'Batal'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Jika pengguna mengonfirmasi, kirim permintaan penghapusan
+            document.getElementById('delete-form-' + orderId).submit();
         }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Terjadi kesalahan');
-        location.reload();
     });
-}
-
-function deleteOrder(orderId) {
-    const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
-    document.getElementById('deleteForm').action = `/admin/orders/${orderId}`;
-    modal.show();
 }
 </script>
 @endpush
+@endsection

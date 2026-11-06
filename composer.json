@@ -6,11 +6,13 @@
     "license": "MIT",
     "require": {
         "php": "^8.2",
+        "darryldecode/cart": "^4.2",
         "doctrine/dbal": "^4.2",
         "laravel/framework": "^11.0",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.9",
         "laravel/ui": "^4.5",
+        "pusher/pusher-php-server": "^7.2",
         "spatie/laravel-permission": "^6.10"
     },
     "require-dev": {
@@ -29,7 +31,8 @@
             "Database\\Seeders\\": "database/seeders/"
         },
         "files": [
-            "app/helpers.php"
+            "app/helpers.php",
+            "app/Helpers/CartHelper.php"
         ]
     },
     "autoload-dev": {

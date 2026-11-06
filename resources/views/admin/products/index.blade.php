@@ -126,14 +126,13 @@
                                        class="btn btn-sm btn-outline-primary">
                                         <i class="bi bi-pencil me-1"></i>Edit
                                     </a>
-                                    <form action="{{ route('admin.products.destroy', $product) }}"
-                                          method="POST"
-                                          onsubmit="return confirm('Apakah Anda yakin ingin menghapus produk ini?')">
+                                    <!-- Tombol hapus produk -->
+                                    <button class="btn btn-danger" onclick="confirmDelete('{{ $product->id }}')">Hapus</button>
+
+                                    <!-- Form untuk menghapus produk -->
+                                    <form id="delete-form-{{ $product->id }}" action="{{ route('admin.products.destroy', $product->id) }}" method="POST" style="display:none;">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="submit" class="btn btn-sm btn-outline-danger">
-                                            <i class="bi bi-trash me-1"></i>Hapus
-                                        </button>
                                     </form>
                                 </div>
                             </td>
@@ -165,33 +164,23 @@
 @endsection
 
 @push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-function updateStatus(productId, element) {
-    fetch(`/admin/products/${productId}/update-status`, {
-        method: 'PATCH',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-        },
-        body: JSON.stringify({
-            is_active: element.checked
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // Show success toast
-            alert('Status produk berhasil diperbarui');
-        } else {
-            // Show error toast and revert checkbox
-            alert('Gagal memperbarui status produk');
-            element.checked = !element.checked;
+function confirmDelete(productId) {
+    Swal.fire({
+        title: 'Hapus Produk?',
+        text: "Apakah Anda yakin ingin menghapus produk ini?",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Ya, Hapus!',
+        cancelButtonText: 'Batal'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Jika pengguna mengonfirmasi, kirim permintaan penghapusan
+            document.getElementById('delete-form-' + productId).submit();
         }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Terjadi kesalahan');
-        element.checked = !element.checked;
     });
 }
 </script>

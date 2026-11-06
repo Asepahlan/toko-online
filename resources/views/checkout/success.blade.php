@@ -5,6 +5,11 @@
 @section('meta')
 <meta name="description" content="Pesanan Anda telah berhasil dibuat. Silakan lanjutkan ke WhatsApp untuk proses pembayaran.">
 <meta name="robots" content="noindex, nofollow">
+<meta property="og:title" content="Pesanan Berhasil - {{ config('app.name') }}">
+<meta property="og:description" content="Pesanan Anda telah berhasil dibuat. Silakan lanjutkan ke WhatsApp untuk proses pembayaran.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="{{ request()->url() }}">
+<meta property="og:image" content="{{ asset('path/to/image.jpg') }}"> <!-- Ganti dengan path gambar yang sesuai -->
 @endsection
 
 @section('content')

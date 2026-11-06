@@ -2,172 +2,155 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\CartItem;
 use App\Models\Product;
-use App\Models\Order;
+use Darryldecode\Cart\Facades\CartFacade as Cart;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth; // Tambahkan ini untuk menggunakan Auth
 
 class CartController extends Controller
 {
     public function index()
     {
-        // Ambil cart items untuk user yang login
-        $cartItems = CartItem::with('product.category')
-            ->where('user_id', Auth::id())
-            ->get();
-
-        // Hitung total
-        $total = $cartItems->sum(function($item) {
-            return $item->product->price * $item->quantity;
-        });
-
+        $cartItems = Cart::getContent();
+        $total = Cart::getTotal();
         return view('cart.index', compact('cartItems', 'total'));
     }
 
-    public function add(Request $request, Product $product)
-    {
-        $request->validate([
-            'quantity' => 'sometimes|numeric|min:1'
-        ]);
-
-        $quantity = $request->quantity ?? 1;
-
-        // Cek stok produk
-        if ($product->stock < $quantity) {
-            return back()->with('error', 'Stok produk tidak mencukupi');
-        }
-
-        // Cek apakah produk sudah ada di cart
-        $cartItem = CartItem::where('user_id', Auth::id())
-            ->where('product_id', $product->id)
-            ->first();
-
-        if ($cartItem) {
-            // Update quantity jika produk sudah ada
-            $cartItem->increment('quantity', $quantity);
-        } else {
-            // Tambah produk baru ke cart
-            CartItem::create([
-                'user_id' => Auth::id(),
-                'product_id' => $product->id,
-                'quantity' => $quantity
-            ]);
-        }
-
-        return back()->with('success', 'Produk berhasil ditambahkan ke keranjang');
-    }
-
-    public function update(Request $request, $productId)
-    {
-        $request->validate([
-            'quantity' => 'required|numeric|min:1'
-        ]);
-
-        $cartItem = CartItem::where('user_id', Auth::id())
-            ->where('product_id', $productId)
-            ->firstOrFail();
-
-        // Cek stok produk
-        if ($cartItem->product->stock < $request->quantity) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Stok produk tidak mencukupi'
-            ]);
-        }
-
-        $cartItem->update([
-            'quantity' => $request->quantity
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Jumlah produk berhasil diperbarui'
-        ]);
-    }
-
-    public function remove($productId)
-    {
-        CartItem::where('user_id', Auth::id())
-            ->where('product_id', $productId)
-            ->delete();
-
-        return back()->with('success', 'Produk berhasil dihapus dari keranjang');
-    }
-
-    public function checkout(Request $request)
+    public function add(Product $product)
     {
         try {
-            DB::beginTransaction();
+            // Debug untuk melihat data produk
+            Log::info('Product Data:', $product->only(['id', 'name', 'image', 'image_url']));
 
-            // Ambil cart items
-            $cartItems = CartItem::with('product')
-                ->where('user_id', Auth::id())
-                ->get();
+            Cart::add([
+                'id' => $product->id,
+                'name' => $product->name,
+                'price' => $product->price,
+                'quantity' => 1,
+                'attributes' => $product->only(['image', 'image_url', 'stock'])
+            ]);
 
-            if ($cartItems->isEmpty()) {
-                return back()->with('error', 'Keranjang belanja kosong');
-            }
-
-            // Validasi stok
-            foreach ($cartItems as $item) {
-                if ($item->product->stock < $item->quantity) {
-                    return back()->with('error', "Stok {$item->product->name} tidak mencukupi");
-                }
-            }
-
-            // Hitung total
-            $total = $cartItems->sum(function($item) {
-                return $item->product->price * $item->quantity;
-            });
-
-            // Generate invoice number
-            $invoiceNumber = 'INV-' . date('Ymd') . '-' . str_pad(Order::count() + 1, 4, '0', STR_PAD_LEFT);
-
-            try {
-                // Buat order dengan field yang sesuai dengan model
-                $order = Order::create([
-                    'invoice_number' => $invoiceNumber,
-                    'user_id' => Auth::id(),
-                    'total_amount' => $total,
-                    'shipping_address' => 'Alamat akan diupdate',
-                    'contact_number' => Auth::user()->phone ?? 'Nomor HP akan diupdate', // Sesuaikan dengan field di database
-                    'notes' => '-',
-                    'status' => 'pending'
-                ]);
-
-                // Buat order items
-                foreach ($cartItems as $item) {
-                    $order->orderItems()->create([
-                        'product_id' => $item->product_id,
-                        'quantity' => $item->quantity,
-                        'price' => $item->product->price
-                    ]);
-
-                    // Kurangi stok produk
-                    $item->product->decrement('stock', $item->quantity);
-                }
-
-                // Kosongkan cart
-                CartItem::where('user_id', Auth::id())->delete();
-
-                DB::commit();
-
-                return redirect()->route('orders.show', $order)
-                    ->with('success', 'Pesanan berhasil dibuat');
-
-            } catch (\Exception $e) {
-                Log::error('Error creating order: ' . $e->getMessage());
-                DB::rollBack();
-                return back()->with('error', 'Terjadi kesalahan saat membuat pesanan. Silakan coba lagi.');
-            }
+            return response()->json([
+                'success' => true,
+                'cartCount' => Cart::getTotalQuantity(),
+                'message' => 'Produk berhasil ditambahkan ke keranjang'
+            ]);
 
         } catch (\Exception $e) {
-            Log::error('Error in checkout process: ' . $e->getMessage());
-            DB::rollBack();
-            return back()->with('error', 'Terjadi kesalahan sistem. Silakan coba lagi nanti.');
+            Log::error('Error adding to cart: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat menambahkan ke keranjang'
+            ], 500);
         }
+    }
+
+    public function remove($id)
+    {
+        if (!Cart::get($id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Item tidak ditemukan di keranjang'
+            ], 404);
+        }
+
+        try {
+            Cart::remove($id);
+            return response()->json([
+                'success' => true,
+                'cartCount' => Cart::getTotalQuantity(),
+                'total' => Cart::getTotal(),
+                'message' => 'Item berhasil dihapus dari keranjang'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error removing from cart: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal menghapus item dari keranjang'
+            ], 500);
+        }
+    }
+
+    public function update(Request $request, $id)
+    {
+        try {
+            $request->validate([
+                'quantity' => 'required|numeric|min:1'
+            ]);
+
+            $item = Cart::get($id);
+            if (!$item) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Item tidak ditemukan'
+                ], 404);
+            }
+
+            // Cek stok
+            $product = Product::find($id);
+            if ($request->quantity > $product->stock) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Stok tidak mencukupi'
+                ], 400);
+            }
+
+            Cart::update($id, [
+                'quantity' => [
+                    'relative' => false,
+                    'value' => $request->quantity
+                ]
+            ]);
+
+            $updatedItem = Cart::get($id);
+
+            return response()->json([
+                'success' => true,
+                'cartCount' => Cart::getTotalQuantity(),
+                'subtotal' => $updatedItem->getPriceSum(),
+                'total' => Cart::getTotal(),
+                'message' => 'Jumlah item berhasil diupdate'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error updating cart: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengupdate jumlah item'
+            ], 500);
+        }
+    }
+
+    public function clear()
+    {
+        try {
+            Cart::clear();
+            return response()->json([
+                'success' => true,
+                'message' => 'Keranjang berhasil dikosongkan'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error clearing cart: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengosongkan keranjang'
+            ], 500);
+        }
+    }
+
+    public function count()
+    {
+        return response()->json([
+            'count' => Cart::getTotalQuantity()
+        ]);
+    }
+
+    public function getTotal()
+    {
+        return response()->json([
+            'total' => Cart::getTotal()
+        ]);
     }
 }

@@ -21,7 +21,7 @@
             <h5 class="card-title mb-0">Filter</h5>
         </div>
         <div class="card-body">
-            <form id="filterForm" class="row g-3">
+            <form id="filterForm" class="row g-3" action="{{ route('admin.users.index') }}" method="GET">
                 <!-- Filter Role -->
                 <div class="col-12 col-md-4">
                     <label class="form-label">Role</label>
@@ -69,9 +69,9 @@
                     <label class="form-label">Cari</label>
                     <div class="input-group">
                         <input type="text" class="form-control" id="searchInput"
-                               placeholder="Cari nama atau email..." name="search">
+                               placeholder="Cari nama atau email..." name="search" value="{{ request('search') }}">
                         <button class="btn btn-primary" type="submit">
-                            <i class="bi bi-search"></i>
+                            Cari
                         </button>
                     </div>
                 </div>
@@ -126,15 +126,19 @@
                             <td>{{ $user->created_at->format('d/m/Y') }}</td>
                             <td class="text-end px-3">
                                 <div class="btn-group">
-                                    <button class="btn btn-sm btn-outline-primary" onclick="editUser({{ $user->id }})">
+                                    <!-- Tombol Edit -->
+                                    <a href="{{ route('admin.users.edit', $user) }}" class="btn btn-warning btn-sm rounded-circle">
                                         <i class="bi bi-pencil"></i>
-                                    </button>
-                                    @if(auth()->id() !== $user->id)
-                                    <button class="btn btn-sm btn-outline-danger"
-                                            onclick="confirmDelete({{ $user->id }}, '{{ $user->name }}')">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                    @endif
+                                    </a>
+
+                                    <!-- Tombol Hapus -->
+                                    <form action="{{ route('admin.users.destroy', $user) }}" method="POST" class="d-inline delete-form">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="button" class="btn btn-danger btn-sm rounded-circle delete-btn">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
                                 </div>
                             </td>
                         </tr>
@@ -191,165 +195,26 @@
 
 @push('scripts')
 <script>
-function editUser(userId) {
-    fetch(`/admin/users/${userId}/edit`)
-        .then(response => {
-            if (!response.ok) throw new Error('Network response was not ok');
-            return response.json();
-        })
-        .then(user => {
-            const form = document.getElementById('editUserForm');
-            form.action = `/admin/users/${userId}`;
-            form.querySelector('[name="name"]').value = user.name;
-            form.querySelector('[name="email"]').value = user.email;
-            form.querySelector('[name="role"]').value = user.role;
-            form.querySelector('[name="is_active"]').checked = user.is_active;
-
-            new bootstrap.Modal(document.getElementById('editUserModal')).show();
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Terjadi kesalahan saat mengambil data pengguna');
-        });
-}
-
-// Perbaiki event listener untuk form submit
-document.addEventListener('DOMContentLoaded', function() {
-    document.getElementById('editUserForm').addEventListener('submit', function(e) {
+document.querySelectorAll('.delete-btn').forEach(button => {
+    button.addEventListener('click', function(e) {
         e.preventDefault();
+        const form = this.closest('form');
 
-        const formData = new FormData(this);
-        const userId = this.action.split('/').pop();
-
-        fetch(this.action, {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+        Swal.fire({
+            title: 'Konfirmasi Hapus',
+            text: 'Apakah Anda yakin ingin menghapus pengguna ini?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Ya, Hapus!',
+            cancelButtonText: 'Batal',
+            reverseButtons: true
+        }).then((result) => {
+            if (result.isConfirmed) {
+                form.submit();
             }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Update status badge
-                const statusBadge = document.querySelector(`.status-badge[data-user-id="${userId}"]`);
-                if (statusBadge) {
-                    const isActive = formData.get('is_active') === 'on';
-                    statusBadge.className = `badge bg-${isActive ? 'success' : 'danger'} status-badge`;
-                    statusBadge.textContent = isActive ? 'Aktif' : 'Tidak Aktif';
-                }
-
-                // Tutup modal
-                const modal = bootstrap.Modal.getInstance(document.getElementById('editUserModal'));
-                if (modal) modal.hide();
-
-                // Tampilkan pesan sukses
-                alert('Pengguna berhasil diperbarui');
-                location.reload();
-            } else {
-                alert(data.message || 'Terjadi kesalahan saat memperbarui pengguna');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Terjadi kesalahan saat memperbarui pengguna');
         });
-    });
-});
-
-// Update fungsi confirmDelete dengan animasi yang lebih jelas
-function confirmDelete(userId, userName) {
-    Swal.fire({
-        title: 'Hapus Pengguna?',
-        text: `Apakah Anda yakin ingin menghapus pengguna ${userName}?`,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#dc3545',
-        cancelButtonColor: '#6c757d',
-        confirmButtonText: 'Ya, Hapus!',
-        cancelButtonText: 'Batal',
-        reverseButtons: true,
-        showClass: {
-            popup: 'animate__animated animate__zoomIn animate__faster'
-        },
-        hideClass: {
-            popup: 'animate__animated animate__zoomOut animate__faster'
-        }
-    }).then((result) => {
-        if (result.isConfirmed) {
-            // Tampilkan loading dengan animasi
-            Swal.fire({
-                title: 'Menghapus Pengguna',
-                html: 'Mohon tunggu sebentar...',
-                allowOutsideClick: false,
-                showConfirmButton: false,
-                willOpen: () => {
-                    Swal.showLoading();
-                },
-                showClass: {
-                    popup: 'animate__animated animate__fadeIn animate__faster'
-                }
-            });
-
-            // Buat form untuk delete
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = `/admin/users/${userId}`;
-            form.innerHTML = `
-                @csrf
-                @method('DELETE')
-            `;
-            document.body.appendChild(form);
-            form.submit();
-        }
-    });
-}
-
-// Tambahkan di head untuk animasi
-document.head.insertAdjacentHTML('beforeend', `
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
-`);
-
-// Update notifikasi sukses/error dengan animasi yang lebih jelas
-@if(session('success'))
-    Swal.fire({
-        icon: 'success',
-        title: 'Berhasil!',
-        text: '{{ session('success') }}',
-        showConfirmButton: false,
-        timer: 1500,
-        showClass: {
-            popup: 'animate__animated animate__fadeInDown animate__faster'
-        },
-        hideClass: {
-            popup: 'animate__animated animate__fadeOutUp animate__faster'
-        }
-    });
-@endif
-
-@if(session('error'))
-    Swal.fire({
-        icon: 'error',
-        title: 'Gagal!',
-        text: '{{ session('error') }}',
-        showClass: {
-            popup: 'animate__animated animate__shakeX animate__faster'
-        }
-    });
-@endif
-
-// Tambahkan filter realtime
-document.getElementById('filterForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    const formData = new FormData(this);
-    const params = new URLSearchParams(formData);
-    window.location.href = `${window.location.pathname}?${params.toString()}`;
-});
-
-// Update filter realtime
-document.querySelectorAll('input[type="radio"]').forEach(radio => {
-    radio.addEventListener('change', function() {
-        document.getElementById('filterForm').dispatchEvent(new Event('submit'));
     });
 });
 </script>

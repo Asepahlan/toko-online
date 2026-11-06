@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Edit Profil')
+@section('title', 'Edit Profil - Update Informasi Pengguna')
 
 @section('content')
 <div class="container py-5">
@@ -8,33 +8,35 @@
         <div class="col-md-8">
             <div class="card border-0 shadow-sm">
                 <div class="card-body p-4">
-                    <h2 class="card-title h4 mb-4">Edit Profil</h2>
+                    <h1 class="card-title h4 mb-4">Edit Profil Pengguna</h1>
 
-                    <form action="{{ route('profile.update') }}" method="POST">
+                    <form action="{{ route('profile.update') }}" method="POST" aria-label="Formulir Edit Profil">
                         @csrf
                         @method('PATCH')
 
                         <div class="mb-3">
-                            <label for="name" class="form-label">Nama</label>
+                            <label for="name" class="form-label">Nama Lengkap</label>
                             <input type="text"
                                    class="form-control @error('name') is-invalid @enderror"
                                    id="name"
                                    name="name"
                                    value="{{ old('name', $user->name) }}"
-                                   required>
+                                   required
+                                   aria-required="true">
                             @error('name')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
                         </div>
 
                         <div class="mb-3">
-                            <label for="email" class="form-label">Email</label>
+                            <label for="email" class="form-label">Email Aktif</label>
                             <input type="email"
                                    class="form-control @error('email') is-invalid @enderror"
                                    id="email"
                                    name="email"
                                    value="{{ old('email', $user->email) }}"
-                                   required>
+                                   required
+                                   aria-required="true">
                             @error('email')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
@@ -46,14 +48,16 @@
                                    class="form-control @error('phone') is-invalid @enderror"
                                    id="phone"
                                    name="phone"
-                                   value="{{ old('phone', $user->phone) }}">
+                                   value="{{ old('phone', $user->phone) }}"
+                                   aria-describedby="phoneHelp">
+                            <small id="phoneHelp" class="form-text text-muted">Masukkan nomor telepon yang dapat dihubungi.</small>
                             @error('phone')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
                         </div>
 
                         <div class="mb-4">
-                            <label for="address" class="form-label">Alamat</label>
+                            <label for="address" class="form-label">Alamat Lengkap</label>
                             <textarea class="form-control @error('address') is-invalid @enderror"
                                       id="address"
                                       name="address"

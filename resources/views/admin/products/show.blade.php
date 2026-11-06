@@ -3,6 +3,10 @@
 @section('title', 'Detail Produk - ' . $product->name)
 
 @section('content')
+@php
+use Illuminate\Support\Facades\Storage;
+@endphp
+
 <div class="container-fluid">
     <!-- Breadcrumb -->
     <nav aria-label="breadcrumb" class="mb-4">
@@ -34,12 +38,12 @@
             <div class="row">
                 <div class="col-md-4">
                     @if($product->image)
-                        <img src="{{ Storage::url($product->image) }}"
+                        <img src="{{ asset('storage/' . $product->image) }}"
                              alt="{{ $product->name }}"
                              class="img-fluid rounded">
                     @else
                         <div class="bg-light rounded d-flex align-items-center justify-content-center"
-                             style="height: 300px">
+                             style="height: 300px;">
                             <i class="fas fa-image fa-3x text-secondary"></i>
                         </div>
                     @endif

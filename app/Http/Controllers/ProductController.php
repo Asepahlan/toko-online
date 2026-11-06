@@ -5,66 +5,150 @@ namespace App\Http\Controllers;
 use App\Models\Product;
 use App\Models\Category;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class ProductController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Product::query()->with('category')->where('is_active', true);
+        $query = Product::with('category')->latest();
 
-        // Filter berdasarkan pencarian
-        if ($request->filled('search')) {
-            $query->where('name', 'like', '%' . $request->search . '%');
+        // Filter berdasarkan kategori menggunakan slug
+        if ($request->category) {
+            $query->whereHas('category', function($q) use ($request) {
+                $q->where('slug', $request->category);
+            });
         }
 
-        // Filter berdasarkan kategori (single selection)
-        if ($request->filled('category')) {
-            $query->where('category_id', $request->category);
-        }
-
-        // Filter berdasarkan rentang harga
-        if ($request->filled('min_price')) {
-            $query->where('price', '>=', $request->min_price);
-        }
-        if ($request->filled('max_price')) {
-            $query->where('price', '<=', $request->max_price);
-        }
-
-        // Urutkan produk
-        switch ($request->sort) {
-            case 'oldest':
-                $query->oldest();
-                break;
-            case 'price_low':
-                $query->orderBy('price', 'asc');
-                break;
-            case 'price_high':
-                $query->orderBy('price', 'desc');
-                break;
-            default:
-                $query->latest();
-                break;
+        // Filter dan pencarian lainnya
+        if ($request->search) {
+            $query->where('name', 'like', "%{$request->search}%");
         }
 
         $products = $query->paginate(12);
-        $categories = Category::withCount('products')->get();
+        $categories = Category::all();
 
         return view('products.index', compact('products', 'categories'));
     }
 
-    public function show(Product $product)
+    public function show($slug)
     {
-        if (!$product->is_active) {
-            abort(404);
-        }
+        $product = Product::where('slug', $slug)->firstOrFail();
 
+        // Ambil produk terkait berdasarkan kategori
         $relatedProducts = Product::where('category_id', $product->category_id)
-                                 ->where('id', '!=', $product->id)
-                                 ->where('is_active', true)
-                                 ->inRandomOrder()
-                                 ->take(4)
-                                 ->get();
+            ->where('id', '!=', $product->id)
+            ->take(4)
+            ->get();
 
         return view('products.show', compact('product', 'relatedProducts'));
+    }
+
+    public function create()
+    {
+        $categories = Category::all();
+        return view('admin.products.create', compact('categories'));
+    }
+
+    public function store(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'required|string',
+            'price' => 'required|numeric|min:0',
+            'category_id' => 'required|exists:categories,id',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+            'is_active' => 'boolean'
+        ]);
+
+        $data = $request->all();
+
+        if ($request->hasFile('image')) {
+            $image = $request->file('image');
+            $path = $image->store('products', 'public');
+            $data['image'] = $path;
+        }
+
+        Product::create($data);
+
+        return redirect()
+            ->route('admin.products.index')
+            ->with('success', 'Produk berhasil ditambahkan!');
+    }
+
+    public function edit(Product $product)
+    {
+        $categories = Category::all();
+        return view('admin.products.edit', compact('product', 'categories'));
+    }
+
+    public function update(Request $request, Product $product)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'required|string',
+            'price' => 'required|numeric|min:0',
+            'category_id' => 'required|exists:categories,id',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+            'is_active' => 'boolean'
+        ]);
+
+        $data = $request->all();
+
+        if ($request->hasFile('image')) {
+            // Hapus gambar lama jika ada
+            if ($product->image) {
+                Storage::disk('public')->delete($product->image);
+            }
+
+            $image = $request->file('image');
+            $path = $image->store('products', 'public');
+            $data['image'] = $path;
+        }
+
+        $product->update($data);
+
+        return redirect()
+            ->route('admin.products.index')
+            ->with('success', 'Produk berhasil diperbarui!');
+    }
+
+    public function destroy(Product $product)
+    {
+        // Hapus gambar produk
+        if ($product->image) {
+            Storage::disk('public')->delete($product->image);
+        }
+
+        $product->delete();
+
+        return redirect()
+            ->route('admin.products.index')
+            ->with('success', 'Produk berhasil dihapus!');
+    }
+
+    public function category(Category $category)
+    {
+        $products = Product::where('category_id', $category->id)
+                          ->paginate(12);
+
+        return view('products.index', [
+            'products' => $products,
+            'category' => $category
+        ]);
+    }
+
+    public function new()
+    {
+        $products = Product::latest()->paginate(12);
+        return view('products.index', compact('products'));
+    }
+
+    public function popular()
+    {
+        $products = Product::withCount('orders')
+            ->orderByDesc('orders_count')
+            ->paginate(12);
+        return view('products.index', compact('products'));
     }
 }

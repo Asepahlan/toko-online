@@ -9,17 +9,18 @@ return new class extends Migration
     public function up()
     {
         Schema::table('products', function (Blueprint $table) {
-            $table->boolean('featured')->default(false);
-            // Opsional: jika ingin menghitung penjualan
-            // $table->integer('sales_count')->default(0);
+            if (!Schema::hasColumn('products', 'featured')) {
+                $table->boolean('featured')->default(false);
+            }
         });
     }
 
     public function down()
     {
         Schema::table('products', function (Blueprint $table) {
-            $table->dropColumn('featured');
-            // $table->dropColumn('sales_count');
+            if (Schema::hasColumn('products', 'featured')) {
+                $table->dropColumn('featured');
+            }
         });
     }
 };

@@ -2,123 +2,103 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Order;
-use App\Models\CartItem;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use App\Models\Order;
+use App\Models\OrderItem;
+use App\Models\Product;
+use Darryldecode\Cart\Facades\CartFacade as Cart;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class CheckoutController extends Controller
 {
     public function index()
     {
-        $cartItems = CartItem::with('product')
-            ->where('user_id', Auth::id())
-            ->get();
+        $cartItems = Cart::getContent();
+        $total = Cart::getTotal();
 
         if ($cartItems->isEmpty()) {
-            return redirect()->route('cart.index')
-                ->with('error', 'Keranjang belanja Anda kosong');
+            return redirect()->route('cart.index')->with('error', 'Keranjang belanja Anda kosong!');
         }
-
-        $total = $cartItems->sum(function($item) {
-            return $item->product->price * $item->quantity;
-        });
 
         return view('checkout.index', compact('cartItems', 'total'));
     }
 
     public function process(Request $request)
     {
-        $request->validate([
-            'shipping_address' => 'required|string',
-            'contact_number' => 'required|string',
-            'notes' => 'nullable|string'
+        $validated = $request->validate([
+            'recipient_name' => 'required|string|max:255',
+            'phone' => 'required|string|max:30',
+            'address' => 'required|string',
+            'notes' => 'nullable|string|max:1000',
         ]);
 
-        $cartItems = CartItem::with('product')
-            ->where('user_id', Auth::id())
-            ->get();
-
-        if ($cartItems->isEmpty()) {
-            return redirect()->route('cart.index')
-                ->with('error', 'Keranjang belanja Anda kosong');
+        if (Cart::isEmpty()) {
+            return redirect()->route('cart.index')->with('error', 'Keranjang belanja kosong!');
         }
-
-        // Hitung total
-        $total = $cartItems->sum(function($item) {
-            return $item->product->price * $item->quantity;
-        });
 
         try {
             DB::beginTransaction();
 
-            // Buat order baru
-            $order = Order::create([
-                'user_id' => Auth::id(),
-                'total_amount' => $total,
-                'shipping_address' => $request->shipping_address,
-                'contact_number' => $request->contact_number,
-                'notes' => $request->notes,
-                'status' => 'pending'
-            ]);
+            $totalAmount = Cart::getTotal();
 
-            // Simpan item order
-            foreach ($cartItems as $item) {
-                $order->orderItems()->create([
-                    'product_id' => $item->product_id,
-                    'quantity' => $item->quantity,
-                    'price' => $item->product->price
-                ]);
-
-                // Kurangi stok produk
-                $item->product->decrement('stock', $item->quantity);
+            // Validate stock for each cart item
+            foreach (Cart::getContent() as $item) {
+                $product = Product::findOrFail($item->id);
+                if ($product->stock < $item->quantity) {
+                    DB::rollBack();
+                    return redirect()->route('cart.index')
+                        ->with('error', "Stok untuk produk {$product->name} tidak mencukupi (Tersisa: {$product->stock})");
+                }
             }
 
-            // Kosongkan keranjang
-            CartItem::where('user_id', Auth::id())->delete();
+            // Create Order
+            $order = Order::create([
+                'user_id' => Auth::id(),
+                'invoice_number' => 'INV-' . strtoupper(uniqid()),
+                'total_amount' => $totalAmount,
+                'status' => Order::STATUS_PENDING,
+                'shipping_address' => $validated['address'],
+                'contact_number' => $validated['phone'],
+                'notes' => $validated['notes'] ?? null,
+            ]);
+
+            // Create Order Items and update product stock
+            foreach (Cart::getContent() as $item) {
+                $product = Product::findOrFail($item->id);
+
+                OrderItem::create([
+                    'order_id' => $order->id,
+                    'product_id' => $item->id,
+                    'quantity' => $item->quantity,
+                    'price' => $item->price,
+                ]);
+
+                $product->decrement('stock', $item->quantity);
+
+                if (\Illuminate\Support\Facades\Schema::hasColumn('products', 'total_sales')) {
+                    $product->increment('total_sales', $item->quantity);
+                }
+                if (\Illuminate\Support\Facades\Schema::hasColumn('products', 'sold_count')) {
+                    $product->increment('sold_count', $item->quantity);
+                }
+            }
+
+            // Clear cart
+            Cart::clear();
 
             DB::commit();
 
-            // Generate pesan WhatsApp
-            $message = $this->generateWhatsAppMessage($order);
-            $whatsappUrl = $this->generateWhatsAppUrl($message);
-
-            return redirect()->route('orders.success', $order)
-                ->with('whatsapp_url', $whatsappUrl);
+            return redirect()->route('orders.show', $order->id)
+                ->with('success', 'Pesanan berhasil dibuat! Silakan lakukan konfirmasi pembayaran.');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->with('error', 'Terjadi kesalahan saat memproses pesanan');
+            Log::error('Checkout error: ' . $e->getMessage());
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Terjadi kesalahan saat memproses pesanan: ' . $e->getMessage());
         }
-    }
-
-    private function generateWhatsAppMessage(Order $order)
-    {
-        $message = "🛍️ *PESANAN BARU*\n\n";
-        $message .= "No. Pesanan: #{$order->id}\n";
-        $message .= "Nama: " . Auth::user()->name . "\n\n";
-
-        $message .= "*Detail Pesanan:*\n";
-        foreach ($order->orderItems as $item) {
-            $message .= "- {$item->product->name} ({$item->quantity}x) @ Rp " .
-                       number_format($item->price) . "\n";
-        }
-
-        $message .= "\nTotal: Rp " . number_format($order->total_amount) . "\n";
-        $message .= "Alamat: {$order->shipping_address}\n";
-        $message .= "No. HP: {$order->contact_number}\n";
-
-        if ($order->notes) {
-            $message .= "\nCatatan: {$order->notes}\n";
-        }
-
-        return $message;
-    }
-
-    private function generateWhatsAppUrl($message)
-    {
-        $phone = "6285215142110"; // Ganti dengan nomor WhatsApp toko
-        return "https://wa.me/{$phone}?text=" . urlencode($message);
     }
 }

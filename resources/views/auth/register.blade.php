@@ -115,23 +115,6 @@
                     </form>
                 </div>
             </div>
-
-            <!-- Social Register -->
-            <div class="card border-0 shadow-sm mt-4">
-                <div class="card-body p-4">
-                    <div class="text-center mb-4">
-                        <p class="text-muted mb-0">Atau daftar dengan</p>
-                    </div>
-                    <div class="d-grid gap-2">
-                        <a href="#" class="btn btn-outline-danger">
-                            <i class="fab fa-google me-2"></i>Google
-                        </a>
-                        <a href="#" class="btn btn-outline-primary">
-                            <i class="fab fa-facebook me-2"></i>Facebook
-                        </a>
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
 </div>

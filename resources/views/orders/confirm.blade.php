@@ -8,7 +8,7 @@
 
 @section('meta')
 <meta name="description" content="Konfirmasi pesanan Anda di {{ config('app.name') }}">
-<meta name="robots" content="noindex, nofollow">
+<meta name="robots" content="index, follow"> <!-- Mengubah menjadi index, follow untuk SEO -->
 @endsection
 
 @section('content')
@@ -117,7 +117,7 @@
 
             <!-- Action Buttons -->
             <div class="d-grid gap-3">
-                <a href="{{ $whatsappUrl }}" class="btn btn-success btn-lg" target="_blank">
+                <a href="{{ $whatsappUrl }}" class="btn btn-success btn-lg" target="_blank" rel="noopener noreferrer"> <!-- Menambahkan rel untuk keamanan -->
                     <i class="bi bi-whatsapp me-2"></i>Konfirmasi via WhatsApp
                 </a>
                 <div class="row g-2">

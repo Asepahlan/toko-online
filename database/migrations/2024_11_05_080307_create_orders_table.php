@@ -10,11 +10,11 @@ return new class extends Migration
     {
         Schema::create('orders', function (Blueprint $table) {
             $table->id();
-            $table->string('invoice_number')->unique();
-            $table->foreignId('user_id')->constrained();
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->string('invoice_number')->nullable()->unique();
             $table->decimal('total_amount', 12, 2);
-            $table->enum('status', ['pending', 'processing', 'shipped', 'completed', 'cancelled'])->default('pending');
-            $table->text('shipping_address');
+            $table->enum('status', ['pending', 'processing', 'completed', 'cancelled'])->default('pending');
+            $table->text('shipping_address')->nullable();
             $table->string('contact_number')->nullable();
             $table->text('notes')->nullable();
             $table->timestamps();

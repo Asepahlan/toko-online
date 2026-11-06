@@ -1,5 +1,6 @@
 @php
     use Illuminate\Support\Facades\Storage;
+    use Illuminate\Support\Str;
 @endphp
 
 @extends('layouts.app')
@@ -8,234 +9,180 @@
 
 @section('content')
 <div class="container py-4">
-    <!-- Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h1 class="h3 mb-2">Keranjang Belanja</h1>
-            <p class="text-muted mb-0">{{ $cartItems->count() }} item dalam keranjang</p>
+    @if(session('success'))
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ session('success') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Tutup"></button>
         </div>
-        <a href="{{ route('products') }}" class="btn btn-outline-primary">
-            <i class="bi bi-arrow-left me-2"></i>Lanjut Belanja
-        </a>
+    @endif
+
+    <div class="row">
+        <div class="col-12">
+            <h1 class="h2 mb-4">Keranjang Belanja</h1>
+            <p class="text-muted">{{ Cart::getContent()->count() }} item dalam keranjang</p>
+        </div>
     </div>
 
-    @if($cartItems->isEmpty())
-        <!-- Empty Cart -->
+    @if(Cart::isEmpty())
         <div class="text-center py-5">
-            <div class="mb-4">
-                <i class="bi bi-cart-x display-1 text-muted"></i>
-            </div>
-            <h3>Keranjang Belanja Kosong</h3>
+            <i class="bi bi-cart-x display-1 text-muted mb-3"></i>
+            <h3>Keranjang Kosong</h3>
             <p class="text-muted mb-4">Belum ada produk di keranjang belanja Anda</p>
-            <a href="{{ route('products') }}" class="btn btn-primary">
-                <i class="bi bi-cart-plus me-2"></i>Mulai Belanja
+            <a href="{{ route('products.index') }}" class="btn btn-primary">
+                <i class="bi bi-arrow-left me-2"></i>Lanjut Belanja
             </a>
         </div>
     @else
-        <div class="row g-4">
-            <div class="col-lg-8">
-                <!-- Cart Items -->
+        <div class="row">
+            <!-- Daftar Produk -->
+            <div class="col-lg-8 mb-4">
                 <div class="card border-0 shadow-sm">
-                    <div class="card-body p-0">
-                        <div class="table-responsive">
-                            <table class="table table-borderless align-middle mb-0">
-                                <thead class="bg-light">
-                                    <tr>
-                                        <th class="ps-4 py-3">Produk</th>
-                                        <th class="py-3" style="width: 120px">Harga</th>
-                                        <th class="py-3" style="width: 150px">Jumlah</th>
-                                        <th class="py-3" style="width: 120px">Subtotal</th>
-                                        <th class="py-3" style="width: 50px"></th>
-                                    </tr>
-                                </thead>
-                                <tbody class="border-top">
-                                    @foreach($cartItems as $item)
-                                        <tr>
-                                            <!-- Product Info -->
-                                            <td class="ps-4">
-                                                <div class="d-flex align-items-center">
-                                                    @if($item->product->image)
-                                                        <img src="{{ Storage::url($item->product->image) }}"
-                                                             alt="{{ $item->product->name }}"
-                                                             class="rounded"
-                                                             width="64"
-                                                             height="64"
-                                                             style="object-fit: cover;">
-                                                    @else
-                                                        <div class="bg-light rounded d-flex align-items-center justify-content-center"
-                                                             style="width: 64px; height: 64px;">
-                                                            <i class="bi bi-image text-secondary fs-4"></i>
-                                                        </div>
-                                                    @endif
-                                                    <div class="ms-3">
-                                                        <h6 class="mb-1">{{ $item->product->name }}</h6>
-                                                        <span class="badge bg-info">{{ $item->product->category->name }}</span>
-                                                    </div>
-                                                </div>
-                                            </td>
+                    <div class="card-body p-4">
+                        @foreach(Cart::getContent() as $item)
+                            <div class="row align-items-center mb-4">
+                                <!-- Gambar Produk -->
+                                <div class="col-3 col-md-2">
+                                    <div class="ratio ratio-1x1">
+                                        <img src="{{ $item->attributes->has('image') ? asset('storage/' . $item->attributes->image) : asset('images/default.jpg') }}"
+                                             alt="{{ $item->name }} - Gambar Produk"
+                                             class="rounded w-100 h-100"
+                                             style="object-fit: cover;"
+                                             onerror="this.src='{{ asset('images/default.jpg') }}'">
+                                    </div>
+                                </div>
 
-                                            <!-- Price -->
-                                            <td>Rp {{ number_format($item->product->price, 0, ',', '.') }}</td>
+                                <!-- Info Produk -->
+                                <div class="col-9 col-md-4">
+                                    <h5 class="mb-1">{{ $item->name }}</h5>
+                                    <p class="text-muted mb-0">
+                                        Rp {{ number_format($item->price, 0, ',', '.') }}
+                                    </p>
+                                </div>
 
-                                            <!-- Quantity -->
-                                            <td>
-                                                <div class="input-group input-group-sm quantity-control">
-                                                    <button type="button" class="btn btn-outline-secondary" onclick="updateQuantity({{ $item->product_id }}, -1)">
-                                                        <i class="bi bi-dash"></i>
-                                                    </button>
-                                                    <input type="number"
-                                                           class="form-control text-center"
-                                                           value="{{ $item->quantity }}"
-                                                           min="1"
-                                                           onchange="updateQuantity({{ $item->product_id }}, this.value)">
-                                                    <button type="button" class="btn btn-outline-secondary" onclick="updateQuantity({{ $item->product_id }}, 1)">
-                                                        <i class="bi bi-plus"></i>
-                                                    </button>
-                                                </div>
-                                            </td>
+                                <!-- Quantity -->
+                                <div class="col-6 col-md-3">
+                                    <div class="input-group">
+                                        <button type="button"
+                                                class="btn btn-outline-secondary update-quantity"
+                                                data-id="{{ $item->id }}"
+                                                data-type="decrease">-</button>
+                                        <input type="number"
+                                               class="form-control text-center"
+                                               value="{{ $item->quantity }}"
+                                               data-id="{{ $item->id }}"
+                                               min="1" aria-label="Jumlah produk">
+                                        <button type="button"
+                                                class="btn btn-outline-secondary update-quantity"
+                                                data-id="{{ $item->id }}"
+                                                data-type="increase">+</button>
+                                    </div>
+                                </div>
 
-                                            <!-- Subtotal -->
-                                            <td class="fw-bold text-primary">
-                                                Rp {{ number_format($item->product->price * $item->quantity, 0, ',', '.') }}
-                                            </td>
+                                <!-- Subtotal -->
+                                <div class="col-4 col-md-2 text-end">
+                                    <span id="subtotal-{{ $item->id }}">
+                                        Rp {{ number_format($item->getPriceSum(), 0, ',', '.') }}
+                                    </span>
+                                </div>
 
-                                            <!-- Remove Button -->
-                                            <td>
-                                                <form action="{{ route('cart.remove', $item->product_id) }}" method="POST">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <button type="submit" class="btn btn-link text-danger p-0" title="Hapus">
-                                                        <i class="bi bi-trash"></i>
-                                                    </button>
-                                                </form>
-                                            </td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
+                                <!-- Hapus -->
+                                <div class="col-2 col-md-1 text-end">
+                                    <button onclick="removeItem({{ $item->id }})" class="btn btn-link text-danger p-0" aria-label="Hapus item">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        @endforeach
                     </div>
                 </div>
             </div>
 
+            <!-- Form Checkout -->
             <div class="col-lg-4">
                 <div class="card border-0 shadow-sm">
                     <div class="card-body">
-                        <h5 class="card-title mb-3">Total Belanja</h5>
-                        <div class="d-flex justify-content-between align-items-center mb-4">
-                            <span class="h4 mb-0">Total</span>
-                            <span class="h4 mb-0 text-primary">Rp {{ number_format($total, 0, ',', '.') }}</span>
+                        <h5>Total Belanja</h5>
+                        <div class="d-flex justify-content-between mb-3">
+                            <span>Total</span>
+                            <span id="cart-total">Rp {{ number_format(Cart::getTotal(), 0, ',', '.') }}</span>
                         </div>
-                        <form action="{{ route('cart.checkout') }}" method="POST">
-                            @csrf
-                            <button type="submit" class="btn btn-primary w-100">
-                                <i class="bi bi-cart-check me-2"></i>Buat Pesanan
-                            </button>
-                        </form>
+
+                        <a href="{{ route('checkout.index') }}" class="btn btn-primary w-100 py-2">
+                            <i class="bi bi-bag-check me-2"></i>Lanjut ke Checkout
+                        </a>
                     </div>
                 </div>
             </div>
         </div>
     @endif
+
 </div>
 @endsection
 
-@push('styles')
-<style>
-.quantity-control {
-    width: 120px;
-}
-
-.quantity-control input {
-    text-align: center;
-}
-
-.quantity-control input::-webkit-outer-spin-button,
-.quantity-control input::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-}
-
-.quantity-control input[type=number] {
-    -moz-appearance: textfield;
-}
-
-.table th {
-    font-size: 0.875rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.card {
-    transition: all 0.3s ease;
-}
-
-.card:hover {
-    transform: translateY(-5px);
-}
-
-@media (max-width: 767.98px) {
-    .table th,
-    .table td {
-        font-size: 0.875rem;
-    }
-
-    .quantity-control {
-        width: 100px;
-    }
-}
-</style>
-@endpush
-
 @push('scripts')
 <script>
-function updateQuantity(productId, change) {
-    let input = event.target.parentNode.querySelector('input');
-    let currentValue = parseInt(input.value);
-    let newValue;
+document.querySelectorAll('.update-quantity').forEach(button => {
+    button.addEventListener('click', function() {
+        const id = this.dataset.id;
+        const type = this.dataset.type;
+        const input = document.querySelector(`input[data-id="${id}"]`);
+        let value = parseInt(input.value);
 
-    if (typeof change === 'number') {
-        newValue = currentValue + change;
-    } else {
-        newValue = parseInt(change);
-    }
+        if (type === 'decrease' && value > 1) {
+            value--;
+        } else if (type === 'increase') {
+            value++;
+        }
 
-    if (newValue < 1) newValue = 1;
+        input.value = value;
+        updateCart(id, value);
+    });
+});
 
-    fetch(`/cart/${productId}`, {
-        method: 'PATCH',
+function updateCart(id, quantity) {
+    fetch(`/cart/update/${id}`, {
+        method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
         },
-        body: JSON.stringify({
-            quantity: newValue
-        })
+        body: JSON.stringify({ quantity })
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            location.reload();
-        } else {
-            alert('Gagal memperbarui jumlah');
-            input.value = currentValue;
+            const subtotalEl = document.querySelector(`#subtotal-${id}`);
+            if (subtotalEl) {
+                subtotalEl.textContent = 'Rp ' + new Intl.NumberFormat('id-ID').format(data.subtotal);
+            }
+            const totalEl = document.querySelector('#cart-total');
+            if (totalEl) {
+                totalEl.textContent = 'Rp ' + new Intl.NumberFormat('id-ID').format(data.total);
+            }
         }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Terjadi kesalahan');
-        input.value = currentValue;
     });
 }
 
-// Konfirmasi hapus item
-document.querySelectorAll('form[action*="cart/remove"]').forEach(form => {
-    form.addEventListener('submit', function(e) {
-        if (!confirm('Apakah Anda yakin ingin menghapus produk ini dari keranjang?')) {
-            e.preventDefault();
-        }
-    });
-});
+function removeItem(id) {
+    if (confirm("Apakah Anda yakin ingin menghapus item ini dari keranjang?")) {
+        fetch(`/cart/remove/${id}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert(data.message || 'Gagal menghapus item');
+            }
+        })
+        .catch(() => {
+            location.reload();
+        });
+    }
+}
 </script>
 @endpush

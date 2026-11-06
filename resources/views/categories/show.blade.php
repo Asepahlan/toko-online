@@ -8,8 +8,9 @@
 @section('title', $category->name . ' - ' . config('app.name'))
 
 @section('meta')
-<meta name="description" content="Temukan berbagai produk {{ $category->name }} di {{ config('app.name') }}. {{ $category->description }}">
+<meta name="description" content="Temukan berbagai produk {{ $category->name }} di {{ config('app.name') }}. {{ Str::limit($category->description, 150) }}">
 <meta name="keywords" content="{{ $category->name }}, produk, {{ config('app.name') }}">
+<meta name="robots" content="index, follow">
 @endsection
 
 @section('content')
@@ -46,7 +47,8 @@
                            name="search"
                            class="form-control"
                            placeholder="Nama produk..."
-                           value="{{ request('search') }}">
+                           value="{{ request('search') }}"
+                           aria-label="Cari produk">
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Urutkan</label>
@@ -81,7 +83,7 @@
             <i class="bi bi-box-seam display-1 text-muted mb-3"></i>
             <h3>Tidak ada produk</h3>
             <p class="text-muted">Belum ada produk dalam kategori ini</p>
-            <a href="{{ route('products') }}" class="btn btn-primary">
+            <a href="{{ route('products.index') }}" class="btn btn-primary">
                 Lihat Semua Produk
             </a>
         </div>
@@ -93,7 +95,7 @@
                         <div class="position-relative">
                             @if($product->image)
                                 <img src="{{ Storage::url($product->image) }}"
-                                     alt="{{ $product->name }}"
+                                     alt="{{ $product->name }} - Gambar Produk"
                                      class="card-img-top"
                                      style="height: 200px; object-fit: cover;">
                             @else

@@ -9,65 +9,87 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Admin\AdminProductController;
 use App\Http\Controllers\Admin\AdminCategoryController;
+use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AdminOrderController;
 use App\Http\Controllers\Admin\AdminUserController;
-use App\Http\Controllers\Admin\AdminController;
+use App\Http\Controllers\Admin\ReportController;
+use App\Http\Controllers\CheckoutController;
 use Illuminate\Support\Facades\Auth;
 
-// Halaman publik
+// ===== ROUTE PUBLIK (TANPA AUTH) =====
+// Halaman Utama
 Route::get('/', [HomeController::class, 'index'])->name('home');
-Route::get('/products', [ProductController::class, 'index'])->name('products');
-Route::get('/products/{product:slug}', [ProductController::class, 'show'])->name('products.show');
+
+// Produk
+Route::get('/products', [ProductController::class, 'index'])->name('products.index');
+Route::get('/products/new', [ProductController::class, 'new'])->name('products.new');
+Route::get('/products/popular', [ProductController::class, 'popular'])->name('products.popular');
+Route::get('/products/{slug}', [ProductController::class, 'show'])->name('products.show');
+Route::get('/products/category/{category}', [ProductController::class, 'category'])->name('products.category');
+
+// Kategori
 Route::get('/categories', [CategoryController::class, 'index'])->name('categories.index');
-Route::get('/categories/{category:slug}', [CategoryController::class, 'show'])->name('categories.show');
+Route::get('/categories/{category}', [CategoryController::class, 'show'])->name('categories.show');
 
-// Tambahkan route untuk home
-Route::get('/home', [HomeController::class, 'index'])->name('home');
+// ===== RUTE CART (PUBLIK/AJAX) =====
+Route::prefix('cart')->name('cart.')->group(function () {
+    Route::get('/', [CartController::class, 'index'])->name('index');
+    Route::post('/add/{product}', [CartController::class, 'add'])->name('add');
+    Route::post('/update/{id}', [CartController::class, 'update'])->name('update');
+    Route::put('/update/{id}', [CartController::class, 'update']);
+    Route::delete('/remove/{id}', [CartController::class, 'remove'])->name('remove');
+    Route::post('/clear', [CartController::class, 'clear'])->name('clear');
+    Route::get('/count', [CartController::class, 'count'])->name('count');
+    Route::get('/total', [CartController::class, 'getTotal'])->name('total');
+});
 
-// Route yang memerlukan autentikasi
-Route::middleware('auth')->group(function () {
-    // Profile Routes
+// ===== ROUTE YANG MEMERLUKAN AUTH =====
+Route::middleware(['auth'])->group(function () {
+    // Profile
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
 
-    // Cart Routes
-    Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
-    Route::post('/cart/add/{product}', [CartController::class, 'add'])->name('cart.add');
-    Route::delete('/cart/{productId}', [CartController::class, 'remove'])->name('cart.remove');
-    Route::patch('/cart/{productId}', [CartController::class, 'update'])->name('cart.update');
-    Route::post('/cart/checkout', [CartController::class, 'checkout'])->name('cart.checkout');
-
-    // Order Routes
+    // Order & Checkout
     Route::get('/orders', [OrderController::class, 'index'])->name('orders.index');
+    Route::post('/orders', [OrderController::class, 'store'])->name('orders.store');
+    Route::get('/orders/success', [OrderController::class, 'success'])->name('orders.success');
+    Route::get('/checkout', [CheckoutController::class, 'index'])->name('checkout.index');
+    Route::post('/checkout', [CheckoutController::class, 'process'])->name('checkout.process');
     Route::get('/orders/{order}', [OrderController::class, 'show'])->name('orders.show');
-    Route::get('/orders/{order}/confirm', [OrderController::class, 'confirm'])->name('orders.confirm');
-    Route::get('/orders/{order}/track', [OrderController::class, 'track'])->name('orders.track');
+    Route::post('/orders/{order}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel');
+    Route::get('/orders/{order}/resend-confirmation', [OrderController::class, 'resendConfirmation'])
+         ->name('orders.resend.confirmation');
 });
 
-// Admin Routes
+// ===== ADMIN ROUTES =====
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
-    Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
+    Route::get('/', [AdminDashboardController::class, 'index']);
+    Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
+    Route::get('/dashboard/stats', [AdminDashboardController::class, 'getStats'])->name('dashboard.stats');
+
+    // Users
+    Route::get('/users', [AdminUserController::class, 'index'])->name('users.index');
+    Route::get('/users/{user}/edit', [AdminUserController::class, 'edit'])->name('users.edit');
+    Route::put('/users/{user}', [AdminUserController::class, 'update'])->name('users.update');
+    Route::delete('/users/{user}', [AdminUserController::class, 'destroy'])->name('users.destroy');
+
+    // Products
     Route::resource('products', AdminProductController::class);
-    Route::resource('categories', AdminCategoryController::class);
-    Route::resource('orders', AdminOrderController::class);
-    Route::patch('/orders/{order}/status', [AdminOrderController::class, 'updateStatus'])->name('orders.update-status');
-    Route::patch('/orders/{order}/cancel', [AdminOrderController::class, 'cancel'])->name('orders.cancel');
-    Route::resource('users', AdminUserController::class)->except(['destroy']);
     Route::patch('/products/{product}/update-status', [AdminProductController::class, 'updateStatus'])
         ->name('products.update-status');
-    Route::get('/users/{user}/edit', [AdminUserController::class, 'edit'])->name('users.edit');
-    Route::patch('/users/{user}', [AdminUserController::class, 'update'])->name('users.update');
-    Route::delete('/users/{user}', [AdminUserController::class, 'destroy'])->name('users.destroy');
+
+    // Categories
+    Route::resource('categories', AdminCategoryController::class);
+
+    // Orders
+    Route::get('/orders/filter', [AdminOrderController::class, 'filter'])->name('orders.filter');
+    Route::patch('/orders/{order}/status', [AdminOrderController::class, 'updateStatus'])->name('orders.update-status');
+    Route::patch('/orders/{order}/cancel', [AdminOrderController::class, 'cancel'])->name('orders.cancel');
+    Route::resource('orders', AdminOrderController::class);
+
+    // Reports
+    Route::get('/reports', [ReportController::class, 'index'])->name('reports');
+    Route::get('/reports/sales', [ReportController::class, 'exportSalesReport'])->name('reports.sales');
 });
 
-Route::get('/admin/reports/sales', [AdminController::class, 'exportSalesReport'])
-    ->name('admin.reports.sales')
-    ->middleware(['auth', 'admin']);
-
 Auth::routes();
-
-// Route untuk halaman utama
-Route::get('/', function () {
-    return view('welcome');
-})->name('welcome');
-

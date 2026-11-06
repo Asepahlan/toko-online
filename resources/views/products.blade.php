@@ -35,7 +35,7 @@
                            class="block text-gray-600 hover:text-blue-600 {{ !request('category') ? 'text-blue-600 font-medium' : '' }}">
                             Semua Kategori
                         </a>
-                        @foreach($categories as $category)
+                        @foreach($categories ?? $allCategories ?? [] as $category)
                             <a href="{{ route('products', ['category' => $category->slug]) }}"
                                class="block text-gray-600 hover:text-blue-600 {{ request('category') == $category->slug ? 'text-blue-600 font-medium' : '' }}">
                                 {{ $category->name }}

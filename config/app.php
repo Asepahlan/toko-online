@@ -13,7 +13,7 @@ return [
     |
     */
 
-    'name' => env('APP_NAME', 'Laravel'),
+    'name' => env('APP_NAME', 'AhlanBoys'),
 
     /*
     |--------------------------------------------------------------------------
@@ -157,6 +157,7 @@ return [
 
     'aliases' => [
         // ...
+        'Cart' => Darryldecode\Cart\Facades\CartFacade::class,
     ]
 
 ];

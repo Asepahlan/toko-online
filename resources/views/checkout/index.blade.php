@@ -2,185 +2,117 @@
 
 @section('title', 'Checkout - ' . config('app.name'))
 
-@section('meta')
-<meta name="description" content="Checkout dan selesaikan pembelian Anda di {{ config('app.name') }}">
-<meta name="robots" content="noindex, nofollow">
-@endsection
-
 @section('content')
-<div class="container py-5">
-    <!-- Breadcrumb -->
-    <nav aria-label="breadcrumb" class="mb-4">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{{ route('home') }}">Beranda</a></li>
-            <li class="breadcrumb-item"><a href="{{ route('cart.index') }}">Keranjang</a></li>
-            <li class="breadcrumb-item active" aria-current="page">Checkout</li>
-        </ol>
-    </nav>
+<div class="container py-4">
+    <h2 class="mb-4">Checkout - {{ config('app.name') }}</h2>
+
+    @if(session('error'))
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ session('error') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
+
+    @if($errors->any())
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <ul class="mb-0">
+                @foreach($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
 
     <div class="row">
-        <!-- Form Checkout -->
-        <div class="col-lg-8">
-            <div class="card shadow-sm mb-4">
-                <div class="card-header bg-white">
-                    <h1 class="h5 mb-0">Informasi Pengiriman</h1>
-                </div>
+        <div class="col-md-8">
+            <div class="card border-0 shadow-sm mb-4">
                 <div class="card-body">
-                    <form action="{{ route('checkout.process') }}" method="POST" id="checkoutForm">
+                    <h5 class="card-title mb-4">Informasi Pengiriman</h5>
+                    <form action="{{ route('checkout.process') }}" method="POST" aria-label="Form Checkout">
                         @csrf
-                        <div class="mb-4">
-                            <label for="name" class="form-label">Nama Lengkap</label>
+                        <div class="mb-3">
+                            <label class="form-label" for="recipient_name">Nama Penerima</label>
                             <input type="text"
-                                   class="form-control @error('name') is-invalid @enderror"
-                                   id="name"
-                                   name="name"
-                                   value="{{ old('name', auth()->user()->name) }}"
-                                   required>
-                            @error('name')
+                                   class="form-control @error('recipient_name') is-invalid @enderror"
+                                   id="recipient_name"
+                                   name="recipient_name"
+                                   value="{{ old('recipient_name', auth()->user()->name) }}"
+                                   required
+                                   placeholder="Masukkan nama penerima">
+                            @error('recipient_name')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
                         </div>
 
-                        <div class="mb-4">
-                            <label for="phone" class="form-label">Nomor Telepon</label>
+                        <div class="mb-3">
+                            <label class="form-label" for="phone">Nomor Telepon / WhatsApp</label>
                             <input type="tel"
                                    class="form-control @error('phone') is-invalid @enderror"
                                    id="phone"
                                    name="phone"
-                                   value="{{ old('phone', auth()->user()->phone) }}"
-                                   required>
+                                   value="{{ old('phone', auth()->user()->phone ?? auth()->user()->phone_number) }}"
+                                   required
+                                   placeholder="Contoh: 08123456789">
                             @error('phone')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
                         </div>
 
-                        <div class="mb-4">
-                            <label for="shipping_address" class="form-label">Alamat Pengiriman</label>
-                            <textarea class="form-control @error('shipping_address') is-invalid @enderror"
-                                      id="shipping_address"
-                                      name="shipping_address"
+                        <div class="mb-3">
+                            <label class="form-label" for="address">Alamat Lengkap Pengiriman</label>
+                            <textarea class="form-control @error('address') is-invalid @enderror"
+                                      id="address"
+                                      name="address"
                                       rows="3"
-                                      required>{{ old('shipping_address', auth()->user()->address) }}</textarea>
-                            @error('shipping_address')
+                                      required
+                                      placeholder="Masukkan alamat lengkap penerima (Jalan, RT/RW, Kelurahan, Kecamatan, Kota, Kode Pos)">{{ old('address', auth()->user()->address) }}</textarea>
+                            @error('address')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
                         </div>
 
-                        <div class="mb-4">
-                            <label for="notes" class="form-label">Catatan (Opsional)</label>
-                            <textarea class="form-control"
+                        <div class="mb-3">
+                            <label class="form-label" for="notes">Catatan Pesanan (Opsional)</label>
+                            <textarea class="form-control @error('notes') is-invalid @enderror"
                                       id="notes"
                                       name="notes"
-                                      rows="2">{{ old('notes') }}</textarea>
+                                      rows="2"
+                                      placeholder="Catatan khusus untuk penjual / kurir">{{ old('notes') }}</textarea>
+                            @error('notes')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
                         </div>
-                    </form>
-                </div>
-            </div>
 
-            <!-- Metode Pembayaran -->
-            <div class="card shadow-sm mb-4">
-                <div class="card-header bg-white">
-                    <h2 class="h5 mb-0">Metode Pembayaran</h2>
-                </div>
-                <div class="card-body">
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle me-2"></i>
-                        Pembayaran akan dilakukan melalui WhatsApp setelah order dikonfirmasi
-                    </div>
-                    <div class="d-flex flex-wrap gap-3">
-                        <img src="{{ asset('images/payments/bca.png') }}" alt="BCA" height="30">
-                        <img src="{{ asset('images/payments/mandiri.png') }}" alt="Mandiri" height="30">
-                        <img src="{{ asset('images/payments/bni.png') }}" alt="BNI" height="30">
-                    </div>
+                        <button type="submit" class="btn btn-primary w-100 py-2">
+                            <i class="bi bi-shield-check me-2"></i>Konfirmasi & Buat Pesanan
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>
 
-        <!-- Ringkasan Order -->
-        <div class="col-lg-4">
-            <div class="card shadow-sm mb-4">
-                <div class="card-header bg-white">
-                    <h2 class="h5 mb-0">Ringkasan Order</h2>
-                </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm">
                 <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-borderless">
-                            <tbody>
-                                @foreach($cartItems as $item)
-                                    <tr>
-                                        <td class="text-muted">
-                                            {{ $item->product->name }}
-                                            <br>
-                                            <small>{{ $item->quantity }}x @ Rp {{ number_format($item->product->price) }}</small>
-                                        </td>
-                                        <td class="text-end">
-                                            Rp {{ number_format($item->product->price * $item->quantity) }}
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                            <tfoot class="border-top">
-                                <tr>
-                                    <th>Total</th>
-                                    <th class="text-end">Rp {{ number_format($total) }}</th>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </div>
-
-                    <button type="submit"
-                            form="checkoutForm"
-                            class="btn btn-primary w-100">
-                        <i class="fab fa-whatsapp me-2"></i>
-                        Pesan via WhatsApp
-                    </button>
-                </div>
-            </div>
-
-            <!-- Informasi Keamanan -->
-            <div class="card shadow-sm">
-                <div class="card-body">
-                    <div class="d-flex align-items-center mb-3">
-                        <i class="fas fa-shield-alt text-success fa-2x me-3"></i>
-                        <div>
-                            <h6 class="mb-1">Transaksi Aman</h6>
-                            <small class="text-muted">Data Anda dilindungi dan dienkripsi</small>
+                    <h5 class="card-title mb-3">Ringkasan Pesanan</h5>
+                    @foreach($cartItems as $item)
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>{{ $item->name }} ({{ $item->quantity }}x)</span>
+                            <span>Rp {{ number_format($item->price * $item->quantity, 0, ',', '.') }}</span>
                         </div>
+                    @endforeach
+                    <hr>
+                    <div class="d-flex justify-content-between">
+                        <span class="fw-bold">Total Pembayaran</span>
+                        <span class="fw-bold text-primary fs-5">Rp {{ number_format($total, 0, ',', '.') }}</span>
                     </div>
-                    <div class="d-flex align-items-center">
-                        <i class="fas fa-lock text-success fa-2x me-3"></i>
-                        <div>
-                            <h6 class="mb-1">Pembayaran Terpercaya</h6>
-                            <small class="text-muted">Pembayaran melalui bank terpercaya</small>
-                        </div>
+                    <div class="mt-3 text-muted small">
+                        <i class="bi bi-info-circle me-1"></i> Setelah pesanan dibuat, Anda dapat langsung mengonfirmasi pesanan ke WhatsApp admin.
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
-
-@push('scripts')
-<script type="application/ld+json">
-{
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    "itemListElement": [{
-        "@type": "ListItem",
-        "position": 1,
-        "name": "Beranda",
-        "item": "{{ route('home') }}"
-    },{
-        "@type": "ListItem",
-        "position": 2,
-        "name": "Keranjang",
-        "item": "{{ route('cart.index') }}"
-    },{
-        "@type": "ListItem",
-        "position": 3,
-        "name": "Checkout"
-    }]
-}
-</script>
-@endpush
 @endsection

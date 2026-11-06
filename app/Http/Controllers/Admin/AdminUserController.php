@@ -50,7 +50,7 @@ class AdminUserController extends Controller
 
     public function edit(User $user)
     {
-        return response()->json($user);
+        return view('admin.users.edit', compact('user'));
     }
 
     public function update(Request $request, User $user)
@@ -66,10 +66,7 @@ class AdminUserController extends Controller
             if ($user->role === 'admin' && $request->role === 'user') {
                 $adminCount = User::where('role', 'admin')->count();
                 if ($adminCount <= 1) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Tidak dapat mengubah role admin terakhir'
-                    ], 422);
+                    return redirect()->back()->with('error', 'Tidak dapat mengubah role admin terakhir');
                 }
             }
 
@@ -81,16 +78,10 @@ class AdminUserController extends Controller
                 'is_active' => $request->boolean('is_active')
             ]);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Pengguna berhasil diperbarui'
-            ]);
+            return redirect()->route('admin.users.index')->with('success', 'Pengguna berhasil diperbarui');
         } catch (\Exception $e) {
             Log::error('Error updating user: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Terjadi kesalahan saat memperbarui pengguna'
-            ], 500);
+            return redirect()->back()->with('error', 'Terjadi kesalahan saat memperbarui pengguna');
         }
     }
 

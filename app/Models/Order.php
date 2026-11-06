@@ -2,45 +2,28 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Order extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
-        'invoice_number',
         'user_id',
+        'invoice_number',
         'total_amount',
         'status',
+        'notes',
         'shipping_address',
-        'contact_number',
-        'notes'
+        'contact_number'
     ];
 
-    /**
-     * Get the user that owns the order.
-     */
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(User::class);
-    }
-
-    /**
-     * Get the order items for the order.
-     */
-    public function orderItems(): HasMany
-    {
-        return $this->hasMany(OrderItem::class);
-    }
-
-    /**
-     * Alias for orderItems() for backward compatibility
-     */
-    public function items(): HasMany
-    {
-        return $this->orderItems();
-    }
+    // Status constants
+    const STATUS_PENDING = 'pending';
+    const STATUS_PROCESSING = 'processing';
+    const STATUS_COMPLETED = 'completed';
+    const STATUS_CANCELLED = 'cancelled';
 
     /**
      * Get the status label attribute.
@@ -48,9 +31,8 @@ class Order extends Model
     public function getStatusLabelAttribute(): string
     {
         return match($this->status) {
-            'pending' => 'Menunggu Pembayaran',
+            'pending' => 'Menunggu',
             'processing' => 'Diproses',
-            'shipped' => 'Dikirim',
             'completed' => 'Selesai',
             'cancelled' => 'Dibatalkan',
             default => ucfirst($this->status),
@@ -62,12 +44,68 @@ class Order extends Model
      */
     public function getStatusColorAttribute(): string
     {
-        return [
+        return match($this->status) {
             'pending' => 'warning',
             'processing' => 'info',
-            'shipped' => 'primary',
             'completed' => 'success',
-            'cancelled' => 'danger'
-        ][$this->status] ?? 'secondary';
+            'cancelled' => 'danger',
+            default => 'secondary',
+        };
+    }
+
+    // Relasi ke User
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    // Relasi ke OrderItems - perbaikan nama relasi
+    public function orderItems()
+    {
+        return $this->hasMany(OrderItem::class);
+    }
+
+    // Alias untuk orderItems agar bisa menggunakan items()
+    public function items()
+    {
+        return $this->orderItems();
+    }
+
+    // Scope untuk filter status
+    public function scopePending($query)
+    {
+        return $query->where('status', self::STATUS_PENDING);
+    }
+
+    public function scopeProcessing($query)
+    {
+        return $query->where('status', self::STATUS_PROCESSING);
+    }
+
+    public function scopeCompleted($query)
+    {
+        return $query->where('status', self::STATUS_COMPLETED);
+    }
+
+    public function scopeCancelled($query)
+    {
+        return $query->where('status', self::STATUS_CANCELLED);
+    }
+
+    // Helper untuk mendapatkan daftar status
+    public static function getStatuses()
+    {
+        return [
+            self::STATUS_PENDING => 'Menunggu',
+            self::STATUS_PROCESSING => 'Diproses',
+            self::STATUS_COMPLETED => 'Selesai',
+            self::STATUS_CANCELLED => 'Dibatalkan'
+        ];
+    }
+
+    public function products()
+    {
+        return $this->belongsToMany(Product::class, 'order_items')
+                    ->withPivot('quantity', 'price');
     }
 }

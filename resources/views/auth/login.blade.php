@@ -86,7 +86,7 @@
             </div>
 
             <!-- Social Login -->
-            <div class="card border-0 shadow-sm mt-4">
+            {{-- <div class="card border-0 shadow-sm mt-4">
                 <div class="card-body p-4">
                     <div class="text-center mb-4">
                         <p class="text-muted mb-0">Atau login dengan</p>
@@ -100,7 +100,7 @@
                         </a>
                     </div>
                 </div>
-            </div>
+            </div> --}}
         </div>
     </div>
 </div>

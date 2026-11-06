@@ -3,9 +3,11 @@
 
     // Format pesan WhatsApp
     $message = urlencode(
-        "Halo Admin, saya ingin konfirmasi pesanan:\n\n" .
+        "Halo Admin AhlanBoys, saya ingin konfirmasi pesanan:\n\n" .
         "No. Pesanan: #" . $order->id . "\n" .
-        "Total: Rp " . number_format($order->total_amount, 0, ',', '.') . "\n\n" .
+        "Nama Penerima: " . auth()->user()->name . "\n" . // Menambahkan nama akun
+        "Tanggal Pesanan: " . $order->created_at->format('d F Y H:i') . "\n" .
+        "Total: Rp " . number_format($order->total_amount, 0, ',', '.') . "\n" .
         "Mohon diproses, terima kasih."
     );
     $waUrl = "https://wa.me/6285215142110?text=" . $message;
@@ -14,6 +16,11 @@
 @extends('layouts.app')
 
 @section('title', 'Detail Pesanan #' . $order->id . ' - ' . config('app.name'))
+
+@section('meta')
+<meta name="description" content="Detail pesanan #{{ $order->id }} di {{ config('app.name') }}. Total: Rp {{ number_format($order->total_amount, 0, ',', '.') }}">
+<meta name="robots" content="index, follow">
+@endsection
 
 @section('content')
 <div class="container py-4">
@@ -48,7 +55,7 @@
                                     <tr>
                                         <td class="ps-4">
                                             <div class="d-flex align-items-center">
-                                                <div class="rounded-circle d-flex align-items-center justify-content-center me-3" 
+                                                <div class="rounded-circle d-flex align-items-center justify-content-center me-3"
                                                      style="width: 40px; height: 40px; background-color: {{ '#' . substr(md5($item->product->name), 0, 6) }};">
                                                     <span class="text-white fw-bold">
                                                         {{ strtoupper(substr($item->product->name, 0, 2)) }}

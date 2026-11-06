@@ -67,6 +67,18 @@
                             </button>
                         </div>
                     </form>
+
+                    @if(isset($category))
+                    <!-- Tombol Hapus di Tabel Kategori -->
+                    <form action="{{ route('admin.categories.destroy', $category) }}" method="POST" class="d-inline delete-form">
+                        @csrf
+                        @method('DELETE')
+                        <button type="button" class="btn btn-danger btn-sm rounded-circle delete-btn">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </form>
+                    @endif
+
                 </div>
             </div>
         </div>
@@ -182,5 +194,57 @@ body {
             }, false)
         })
 })()
+
+// Konfirmasi Hapus
+document.querySelectorAll('.delete-btn').forEach(button => {
+    button.addEventListener('click', function(e) {
+        e.preventDefault();
+        const form = this.closest('form');
+
+        Swal.fire({
+            title: 'Konfirmasi Hapus',
+            text: 'Apakah Anda yakin ingin menghapus kategori ini?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Ya, Hapus!',
+            cancelButtonText: 'Batal',
+            reverseButtons: true
+        }).then((result) => {
+            if (result.isConfirmed) {
+                form.submit();
+            }
+        });
+    });
+});
+
+// Notifikasi sukses
+@if(session('success'))
+    Swal.fire({
+        icon: 'success',
+        title: 'Berhasil!',
+        text: '{{ session('success') }}',
+        showConfirmButton: false,
+        timer: 1500,
+        timerProgressBar: true,
+        toast: true,
+        position: 'top-end'
+    });
+@endif
+
+// Notifikasi error
+@if(session('error'))
+    Swal.fire({
+        icon: 'error',
+        title: 'Gagal!',
+        text: '{{ session('error') }}',
+        showConfirmButton: false,
+        timer: 1500,
+        timerProgressBar: true,
+        toast: true,
+        position: 'top-end'
+    });
+@endif
 </script>
 @endpush

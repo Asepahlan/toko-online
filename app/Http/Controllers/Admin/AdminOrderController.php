@@ -5,23 +5,38 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class AdminOrderController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        // Hitung jumlah pesanan berdasarkan status
+        $query = Order::with(['user', 'orderItems.product']);
+
+        // Filter berdasarkan pencarian
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('id', 'like', '%' . $search . '%')
+                  ->orWhereHas('user', function($q) use ($search) {
+                      $q->where('name', 'like', '%' . $search . '%')
+                        ->orWhere('email', 'like', '%' . $search . '%');
+                  });
+            });
+        }
+
+        // Filter berdasarkan status
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        $orders = $query->latest()->paginate(10);
+
+        // Hitung jumlah pesanan per status
         $pendingOrders = Order::where('status', 'pending')->count();
         $processingOrders = Order::where('status', 'processing')->count();
         $completedOrders = Order::where('status', 'completed')->count();
         $cancelledOrders = Order::where('status', 'cancelled')->count();
-
-        // Ambil semua pesanan dengan relasi user dan orderItems
-        $orders = Order::with(['user', 'orderItems.product'])
-            ->latest()
-            ->paginate(10);
 
         return view('admin.orders.index', compact(
             'orders',
@@ -34,112 +49,117 @@ class AdminOrderController extends Controller
 
     public function show(Order $order)
     {
-        $order->load(['user', 'orderItems.product']);
-        return view('admin.orders.show', compact('order'));
+        try {
+            // Load relasi yang diperlukan
+            $order->load(['user', 'orderItems.product']);
+
+            return view('admin.orders.show', compact('order'));
+        } catch (\Exception $e) {
+            Log::error('Error loading order details: ' . $e->getMessage());
+            return back()->withErrors('Gagal memuat detail pesanan');
+        }
     }
 
     public function updateStatus(Request $request, Order $order)
     {
-        $request->validate([
-            'status' => 'required|in:pending,processing,shipped,completed,cancelled'
-        ]);
-
         try {
-            DB::beginTransaction();
-
-            $oldStatus = $order->status;
-            $newStatus = $request->status;
-
-            // Update status pesanan
-            $order->update([
-                'status' => $newStatus
+            // Validasi status yang dikirim
+            $request->validate([
+                'status' => 'required|in:pending,processing,completed,cancelled'
             ]);
 
-            // Jika status berubah menjadi dibatalkan, kembalikan stok produk
-            if ($newStatus === 'cancelled' && $oldStatus !== 'cancelled') {
-                foreach ($order->orderItems as $item) {
-                    $item->product->increment('stock', $item->quantity);
-                }
-            }
-
-            // Jika status berubah dari dibatalkan, kurangi stok produk
-            if ($oldStatus === 'cancelled' && $newStatus !== 'cancelled') {
-                foreach ($order->orderItems as $item) {
-                    $item->product->decrement('stock', $item->quantity);
-                }
-            }
-
-            DB::commit();
-
-            if ($request->ajax()) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Status pesanan berhasil diperbarui'
-                ]);
-            }
+            $order->update([
+                'status' => $request->status
+            ]);
 
             return back()->with('success', 'Status pesanan berhasil diperbarui');
-
         } catch (\Exception $e) {
-            DB::rollBack();
             Log::error('Error updating order status: ' . $e->getMessage());
-            
-            if ($request->ajax()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Gagal memperbarui status pesanan'
-                ]);
-            }
-
-            return back()->with('error', 'Gagal memperbarui status pesanan');
+            return back()->withErrors('Gagal mengupdate status pesanan');
         }
     }
 
     public function destroy(Order $order)
     {
         try {
-            DB::beginTransaction();
-
-            // Jika pesanan belum dibatalkan, kembalikan stok produk
-            if ($order->status !== 'cancelled') {
-                foreach ($order->orderItems as $item) {
-                    $item->product->increment('stock', $item->quantity);
-                }
-            }
-
-            // Hapus order items terlebih dahulu
+            // Hapus order items terlebih dahulu jika ada relasi
             $order->orderItems()->delete();
 
-            // Kemudian hapus order
+            // Hapus order
             $order->delete();
 
-            DB::commit();
-
-            if (request()->ajax()) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Pesanan berhasil dihapus'
-                ]);
-            }
-
             return back()->with('success', 'Pesanan berhasil dihapus');
-
         } catch (\Exception $e) {
-            DB::rollBack();
-
-            if (request()->ajax()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Gagal menghapus pesanan'
-                ]);
-            }
-
-            return back()->with('error', 'Gagal menghapus pesanan');
+            Log::error('Error deleting order: ' . $e->getMessage());
+            return back()->withErrors('Gagal menghapus pesanan');
         }
     }
 
-    public function exportOrders()
+    public function filter(Request $request)
     {
-        // Logika untuk export data pesanan (bisa ditambahkan nanti)
+        try {
+            $query = Order::query();
+
+            // Filter berdasarkan status
+            if ($request->status) {
+                $query->where('status', $request->status);
+            }
+
+            // Filter berdasarkan tanggal
+            if ($request->date_from) {
+                $query->whereDate('created_at', '>=', $request->date_from);
+            }
+            if ($request->date_to) {
+                $query->whereDate('created_at', '<=', $request->date_to);
+            }
+
+            // Filter berdasarkan pencarian
+            if ($request->search) {
+                $query->where(function($q) use ($request) {
+                    $q->whereHas('user', function($q) use ($request) {
+                        $q->where('name', 'like', "%{$request->search}%")
+                          ->orWhere('email', 'like', "%{$request->search}%");
+                    })
+                    ->orWhere('id', 'like', "%{$request->search}%");
+                });
+            }
+
+            $orders = $query->with(['user', 'orderItems.product'])
+                          ->latest()
+                          ->paginate(10);
+
+            return view('admin.orders.index', [
+                'orders' => $orders,
+                'pendingOrders' => Order::where('status', 'pending')->count(),
+                'processingOrders' => Order::where('status', 'processing')->count(),
+                'completedOrders' => Order::where('status', 'completed')->count(),
+                'cancelledOrders' => Order::where('status', 'cancelled')->count()
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error filering orders: ' . $e->getMessage());
+            return back()->withErrors('Gagal memfilter pesanan');
+        }
+    }
+
+    public function update(Request $request, Order $order)
+    {
+        $request->validate([
+            'status' => 'required|in:pending,processing,completed,cancelled'
+        ]);
+
+        $order->update([
+            'status' => $request->status
+        ]);
+
+        return back()->with('success', 'Status pesanan berhasil diperbarui');
+    }
+
+    public function cancel(Order $order)
+    {
+        $order->update([
+            'status' => 'cancelled'
+        ]);
+
+        return back()->with('success', 'Pesanan berhasil dibatalkan');
     }
 }
