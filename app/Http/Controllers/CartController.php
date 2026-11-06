@@ -18,58 +18,84 @@ class CartController extends Controller
         return view('cart.index', compact('cartItems', 'total'));
     }
 
-    public function add(Product $product)
+    public function add(Request $request, Product $product)
     {
         try {
             // Debug untuk melihat data produk
             Log::info('Product Data:', $product->only(['id', 'name', 'image', 'image_url']));
 
+            $qty = (int) $request->input('quantity', 1);
+            if ($qty < 1) $qty = 1;
+
             Cart::add([
                 'id' => $product->id,
                 'name' => $product->name,
                 'price' => $product->price,
-                'quantity' => 1,
+                'quantity' => $qty,
                 'attributes' => $product->only(['image', 'image_url', 'stock'])
             ]);
 
-            return response()->json([
-                'success' => true,
-                'cartCount' => Cart::getTotalQuantity(),
-                'message' => 'Produk berhasil ditambahkan ke keranjang'
-            ]);
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'cartCount' => Cart::getTotalQuantity(),
+                    'message' => 'Produk berhasil ditambahkan ke keranjang'
+                ]);
+            }
+
+            return redirect()->route('cart.index')->with('success', 'Produk berhasil ditambahkan ke keranjang!');
 
         } catch (\Exception $e) {
             Log::error('Error adding to cart: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Terjadi kesalahan saat menambahkan ke keranjang'
-            ], 500);
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Terjadi kesalahan saat menambahkan ke keranjang'
+                ], 500);
+            }
+
+            return back()->with('error', 'Terjadi kesalahan saat menambahkan ke keranjang.');
         }
     }
 
-    public function remove($id)
+    public function remove(Request $request, $id)
     {
         if (!Cart::get($id)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Item tidak ditemukan di keranjang'
-            ], 404);
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Item tidak ditemukan di keranjang'
+                ], 404);
+            }
+            return back()->with('error', 'Item tidak ditemukan di keranjang.');
         }
 
         try {
             Cart::remove($id);
-            return response()->json([
-                'success' => true,
-                'cartCount' => Cart::getTotalQuantity(),
-                'total' => Cart::getTotal(),
-                'message' => 'Item berhasil dihapus dari keranjang'
-            ]);
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'cartCount' => Cart::getTotalQuantity(),
+                    'total' => Cart::getTotal(),
+                    'message' => 'Item berhasil dihapus dari keranjang'
+                ]);
+            }
+
+            return back()->with('success', 'Item berhasil dihapus dari keranjang.');
+
         } catch (\Exception $e) {
             Log::error('Error removing from cart: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Gagal menghapus item dari keranjang'
-            ], 500);
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Gagal menghapus item dari keranjang'
+                ], 500);
+            }
+
+            return back()->with('error', 'Gagal menghapus item dari keranjang.');
         }
     }
 
@@ -82,61 +108,87 @@ class CartController extends Controller
 
             $item = Cart::get($id);
             if (!$item) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Item tidak ditemukan'
-                ], 404);
+                if ($request->ajax() || $request->wantsJson()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Item tidak ditemukan'
+                    ], 404);
+                }
+                return back()->with('error', 'Item tidak ditemukan.');
             }
 
             // Cek stok
             $product = Product::find($id);
-            if ($request->quantity > $product->stock) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Stok tidak mencukupi'
-                ], 400);
+            if ($product && $request->quantity > $product->stock) {
+                if ($request->ajax() || $request->wantsJson()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Stok tidak mencukupi'
+                    ], 400);
+                }
+                return back()->with('error', 'Stok produk tidak mencukupi.');
             }
 
             Cart::update($id, [
                 'quantity' => [
                     'relative' => false,
-                    'value' => $request->quantity
+                    'value' => (int) $request->quantity
                 ]
             ]);
 
             $updatedItem = Cart::get($id);
 
-            return response()->json([
-                'success' => true,
-                'cartCount' => Cart::getTotalQuantity(),
-                'subtotal' => $updatedItem->getPriceSum(),
-                'total' => Cart::getTotal(),
-                'message' => 'Jumlah item berhasil diupdate'
-            ]);
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'cartCount' => Cart::getTotalQuantity(),
+                    'subtotal' => $updatedItem->getPriceSum(),
+                    'total' => Cart::getTotal(),
+                    'message' => 'Jumlah item berhasil diupdate'
+                ]);
+            }
+
+            return back()->with('success', 'Jumlah barang berhasil diperbarui.');
 
         } catch (\Exception $e) {
             Log::error('Error updating cart: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Gagal mengupdate jumlah item'
-            ], 500);
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Gagal mengupdate jumlah item'
+                ], 500);
+            }
+
+            return back()->with('error', 'Gagal memperbarui jumlah barang.');
         }
     }
 
-    public function clear()
+    public function clear(Request $request)
     {
         try {
             Cart::clear();
-            return response()->json([
-                'success' => true,
-                'message' => 'Keranjang berhasil dikosongkan'
-            ]);
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Keranjang berhasil dikosongkan'
+                ]);
+            }
+
+            return redirect()->route('cart.index')->with('success', 'Keranjang belanja berhasil dikosongkan.');
+
         } catch (\Exception $e) {
             Log::error('Error clearing cart: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Gagal mengosongkan keranjang'
-            ], 500);
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Gagal mengosongkan keranjang'
+                ], 500);
+            }
+
+            return back()->with('error', 'Gagal mengosongkan keranjang belanja.');
         }
     }
 
