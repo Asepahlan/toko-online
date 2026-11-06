@@ -1,106 +1,85 @@
 @extends('layouts.app')
 
-@section('title', 'Login - ' . config('app.name'))
-
-@section('meta')
-<meta name="description" content="Login ke akun {{ config('app.name') }} Anda untuk mulai berbelanja.">
-<meta name="robots" content="noindex, nofollow">
-@endsection
+@section('title', 'Masuk ke Akun - ' . config('app.name'))
 
 @section('content')
 <div class="container py-5">
     <div class="row justify-content-center">
-        <div class="col-md-6">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body p-5">
-                    <div class="text-center mb-5">
-                        <h1 class="h3 mb-3">Selamat Datang Kembali</h1>
-                        <p class="text-muted">Login untuk melanjutkan ke {{ config('app.name') }}</p>
+        <div class="col-md-6 col-lg-5">
+            <div class="card border-0 shadow-sm p-4" style="border-radius: 18px;">
+                <div class="card-body">
+                    <!-- Brand Icon & Title -->
+                    <div class="text-center mb-4">
+                        <span class="d-inline-flex align-items-center justify-content-center bg-primary text-white rounded-3 mb-2" style="width: 48px; height: 48px; font-weight: 800; font-size: 1.3rem;">
+                            AB
+                        </span>
+                        <h4 class="fw-bold mb-1">Selamat Datang Kembali</h4>
+                        <p class="text-muted small">Masuk ke akun Anda untuk belanja dan memantau pesanan</p>
                     </div>
 
                     <form method="POST" action="{{ route('login') }}">
                         @csrf
 
-                        <div class="mb-4">
-                            <label for="email" class="form-label">Email</label>
-                            <input type="email"
-                                   class="form-control @error('email') is-invalid @enderror"
-                                   id="email"
-                                   name="email"
-                                   value="{{ old('email') }}"
-                                   required
-                                   autofocus>
+                        <div class="mb-3">
+                            <label for="email" class="form-label fw-semibold">Alamat Email</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white border-end-0 text-muted">
+                                    <i class="bi bi-envelope"></i>
+                                </span>
+                                <input id="email" type="email"
+                                       class="form-control border-start-0 ps-0 @error('email') is-invalid @enderror"
+                                       name="email" value="{{ old('email') }}"
+                                       required autocomplete="email" autofocus
+                                       placeholder="nama@email.com">
+                            </div>
                             @error('email')
-                                <div class="invalid-feedback">{{ $message }}</div>
+                                <span class="text-danger small mt-1 d-block">{{ $message }}</span>
                             @enderror
                         </div>
 
-                        <div class="mb-4">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <label for="password" class="form-label mb-0">Password</label>
-                                @if (\Illuminate\Support\Facades\Route::has('password.request'))
-                                    <a href="{{ route('password.request') }}" class="text-decoration-none small">
-                                        Lupa Password?
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <label for="password" class="form-label fw-semibold mb-0">Kata Sandi</label>
+                                @if (Route::has('password.request'))
+                                    <a class="text-primary text-decoration-none small" href="{{ route('password.request') }}">
+                                        Lupa Sandi?
                                     </a>
                                 @endif
                             </div>
-                            <input type="password"
-                                   class="form-control @error('password') is-invalid @enderror"
-                                   id="password"
-                                   name="password"
-                                   required>
+                            <div class="input-group mt-2">
+                                <span class="input-group-text bg-white border-end-0 text-muted">
+                                    <i class="bi bi-lock"></i>
+                                </span>
+                                <input id="password" type="password"
+                                       class="form-control border-start-0 ps-0 @error('password') is-invalid @enderror"
+                                       name="password" required autocomplete="current-password"
+                                       placeholder="••••••••">
+                            </div>
                             @error('password')
-                                <div class="invalid-feedback">{{ $message }}</div>
+                                <span class="text-danger small mt-1 d-block">{{ $message }}</span>
                             @enderror
                         </div>
 
-                        <div class="mb-4">
-                            <div class="form-check">
-                                <input class="form-check-input"
-                                       type="checkbox"
-                                       name="remember"
-                                       id="remember"
-                                       {{ old('remember') ? 'checked' : '' }}>
-                                <label class="form-check-label" for="remember">
-                                    Ingat Saya
-                                </label>
-                            </div>
+                        <div class="mb-4 form-check">
+                            <input class="form-check-input" type="checkbox" name="remember" id="remember" {{ old('remember') ? 'checked' : '' }}>
+                            <label class="form-check-label text-muted small" for="remember">
+                                Ingat saya di perangkat ini
+                            </label>
                         </div>
 
-                        <div class="d-grid mb-4">
-                            <button type="submit" class="btn btn-primary btn-lg">
-                                <i class="fas fa-sign-in-alt me-2"></i>Login
-                            </button>
-                        </div>
-
-                        <div class="text-center">
-                            <p class="text-muted">
-                                Belum punya akun?
-                                <a href="{{ route('register') }}" class="text-decoration-none">
-                                    Daftar Sekarang
-                                </a>
-                            </p>
-                        </div>
+                        <button type="submit" class="btn btn-primary btn-lg w-100 shadow-sm mb-3">
+                            <i class="bi bi-box-arrow-in-right me-2"></i> Masuk Sekarang
+                        </button>
                     </form>
+
+                    <div class="text-center pt-3 border-top small text-muted">
+                        Belum memiliki akun pelanggan?
+                        <a href="{{ route('register') }}" class="text-primary fw-semibold text-decoration-none">
+                            Daftar Akun Baru
+                        </a>
+                    </div>
                 </div>
             </div>
-
-            <!-- Social Login -->
-            {{-- <div class="card border-0 shadow-sm mt-4">
-                <div class="card-body p-4">
-                    <div class="text-center mb-4">
-                        <p class="text-muted mb-0">Atau login dengan</p>
-                    </div>
-                    <div class="d-grid gap-2">
-                        <a href="#" class="btn btn-outline-danger">
-                            <i class="fab fa-google me-2"></i>Google
-                        </a>
-                        <a href="#" class="btn btn-outline-primary">
-                            <i class="fab fa-facebook me-2"></i>Facebook
-                        </a>
-                    </div>
-                </div>
-            </div> --}}
         </div>
     </div>
 </div>
