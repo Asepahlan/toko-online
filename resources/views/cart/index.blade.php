@@ -38,9 +38,9 @@
                         <span class="fw-bold text-dark">
                             Daftar Produk ({{ Cart::getContent()->count() }} Item)
                         </span>
-                        <form action="{{ route('cart.clear') }}" method="POST" onsubmit="return confirm('Kosongkan semua item di keranjang?')">
+                        <form id="clearCartForm" action="{{ route('cart.clear') }}" method="POST">
                             @csrf
-                            <button type="submit" class="btn btn-link text-danger text-decoration-none p-0 small">
+                            <button type="button" class="btn btn-link text-danger text-decoration-none p-0 small" onclick="confirmClearCart()">
                                 <i class="bi bi-trash3 me-1"></i> Kosongkan Keranjang
                             </button>
                         </form>
@@ -98,10 +98,10 @@
                                     </div>
 
                                     <!-- Delete Item -->
-                                    <form action="{{ route('cart.remove', $item->id) }}" method="POST">
+                                    <form id="removeItemForm{{ $item->id }}" action="{{ route('cart.remove', $item->id) }}" method="POST">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="submit" class="btn btn-sm btn-outline-danger p-1 px-2" title="Hapus dari keranjang">
+                                        <button type="button" class="btn btn-sm btn-outline-danger p-1 px-2" title="Hapus dari keranjang" onclick="confirmRemoveItem('{{ $item->id }}', '{{ addslashes($item->name) }}')">
                                             <i class="bi bi-x-lg"></i>
                                         </button>
                                     </form>
@@ -156,4 +156,38 @@
         </div>
     @endif
 </div>
+
+@section('scripts')
+<script>
+function confirmClearCart() {
+    window.confirmAction({
+        title: 'Kosongkan Keranjang?',
+        text: 'Semua produk yang ada di keranjang belanja Anda akan dihapus.',
+        icon: 'warning',
+        confirmText: 'Ya, Kosongkan',
+        cancelText: 'Batal',
+        confirmColor: '#dc2626'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            document.getElementById('clearCartForm').submit();
+        }
+    });
+}
+
+function confirmRemoveItem(id, name) {
+    window.confirmAction({
+        title: 'Hapus Produk?',
+        text: 'Produk "' + name + '" akan dikeluarkan dari keranjang.',
+        icon: 'question',
+        confirmText: 'Ya, Hapus',
+        cancelText: 'Batal',
+        confirmColor: '#dc2626'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            document.getElementById('removeItemForm' + id).submit();
+        }
+    });
+}
+</script>
+@endsection
 @endsection

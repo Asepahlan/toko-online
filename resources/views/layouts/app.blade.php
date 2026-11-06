@@ -602,6 +602,59 @@
 
     <!-- Bootstrap JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- SweetAlert2 Modern Notification -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        // Custom Styled Confirmation Helper
+        window.confirmAction = function(options) {
+            return Swal.fire({
+                title: options.title || 'Apakah Anda yakin?',
+                text: options.text || '',
+                icon: options.icon || 'warning',
+                showCancelButton: true,
+                confirmButtonColor: options.confirmColor || '#2563eb',
+                cancelButtonColor: options.cancelColor || '#64748b',
+                confirmButtonText: options.confirmText || 'Ya, Lanjutkan',
+                cancelButtonText: options.cancelText || 'Batal',
+                reverseButtons: true,
+                customClass: {
+                    popup: 'rounded-4 shadow-lg border-0',
+                    confirmButton: 'btn btn-primary px-4 py-2 rounded-3 fw-semibold',
+                    cancelButton: 'btn btn-outline-secondary px-4 py-2 rounded-3 fw-semibold me-2'
+                },
+                buttonsStyling: false
+            });
+        };
+
+        // Flash message popup via SweetAlert2 jika ada session
+        @if(session('success'))
+            Swal.fire({
+                icon: 'success',
+                title: 'Berhasil!',
+                text: '{{ session('success') }}',
+                timer: 3000,
+                timerProgressBar: true,
+                showConfirmButton: false,
+                customClass: { popup: 'rounded-4 shadow-lg border-0' }
+            });
+        @endif
+
+        @if(session('error'))
+            Swal.fire({
+                icon: 'error',
+                title: 'Perhatian',
+                text: '{{ session('error') }}',
+                showConfirmButton: true,
+                confirmButtonColor: '#2563eb',
+                confirmButtonText: 'Tutup',
+                customClass: {
+                    popup: 'rounded-4 shadow-lg border-0',
+                    confirmButton: 'btn btn-primary px-4 py-2 rounded-3 fw-semibold'
+                },
+                buttonsStyling: false
+            });
+        @endif
+    </script>
     @yield('scripts')
 </body>
 </html>
